@@ -429,6 +429,206 @@ select:focus {
   color: var(--sub-text);
 }
 
+/* ===== ホーム画面 ===== */
+.home-week {
+  text-align: center;
+  padding: 20px 12px;
+}
+
+.home-range {
+  margin: 0;
+  font-size: 14px;
+  color: var(--sub-text);
+}
+
+/* 「今週 2/3回」 */
+.home-count {
+  margin: 4px 0 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.home-count strong {
+  font-size: 44px;
+  color: var(--accent);
+  margin-left: 4px;
+}
+
+.home-slash {
+  font-size: 28px;
+  margin: 0 2px;
+  color: var(--sub-text);
+}
+
+.home-message {
+  margin: 2px 0 16px;
+  font-size: 15px;
+  color: var(--sub-text);
+}
+
+/* 日〜土の7つの丸 */
+.home-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.home-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--sub-text);
+}
+
+.home-circle {
+  width: 40px;
+  height: 40px;
+  line-height: 36px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  font-size: 15px;
+  color: var(--text);
+}
+
+/* 予定日：オレンジの枠線 */
+.home-circle.is-plan {
+  border-color: var(--accent);
+}
+
+/* 実施日：オレンジで塗りつぶし */
+.home-circle.is-done {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: 700;
+}
+
+/* 今日の曜日は太字にする */
+.home-day.is-today {
+  color: var(--text);
+  font-weight: 700;
+}
+
+/* 丸の説明（予定・実施） */
+.home-legend {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: var(--sub-text);
+}
+
+.home-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.legend-mark {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+}
+
+.legend-mark.is-done {
+  background: var(--accent);
+}
+
+/* ===== 今週の予定を登録するメッセージ ===== */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.5); /* 後ろの画面を暗くする */
+}
+
+.modal[hidden] {
+  display: none;
+}
+
+.modal-box {
+  width: 100%;
+  max-width: 420px;
+  background: var(--card);
+  border-radius: 20px;
+  padding: 22px 16px 16px;
+  text-align: center;
+}
+
+.modal-title {
+  font-size: 19px;
+  margin: 0;
+}
+
+.modal-sub {
+  font-size: 14px;
+  color: var(--sub-text);
+  margin: 4px 0 16px;
+}
+
+/* 日〜土のボタン */
+.plan-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  justify-items: center;
+}
+
+.plan-day {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* 選んだ曜日 */
+.plan-day.is-selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.plan-count {
+  margin: 14px 0 12px;
+  font-size: 15px;
+}
+
+.plan-count strong {
+  font-size: 20px;
+  color: var(--accent);
+}
+
+#plan-ok:disabled {
+  opacity: 0.4;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.modal-actions .btn {
+  flex: 1;
+}
+
+/* メッセージを出している間は、後ろの画面をスクロールさせない */
+body.modal-open {
+  overflow: hidden;
+}
+
 /* ===== 画面下部のタブ ===== */
 .tab-bar {
   position: fixed;
