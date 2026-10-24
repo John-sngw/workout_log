@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <!-- スマホの画面幅に合わせる。viewport-fit=cover でiPhoneの端まで使う -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+  <!-- ホーム画面に追加したとき、アプリのように全画面で起動するための設定 -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="筋トレノート">
+
+  <!-- ダークモードに対応していることをブラウザに伝える -->
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+
+  <title>筋トレノート</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- ===== ホーム画面（フェーズ4で作る） ===== -->
+  <section id="screen-home" class="screen" hidden>
+    <header class="screen-header"><h1>ホーム</h1></header>
+    <p class="coming-soon">準備中</p>
+  </section>
+
+  <!-- ===== カレンダー画面（フェーズ3で作る） ===== -->
+  <section id="screen-calendar" class="screen" hidden>
+    <header class="screen-header"><h1>カレンダー</h1></header>
+    <p class="coming-soon">準備中</p>
+  </section>
+
+  <!-- ===== 入力画面 ===== -->
+  <section id="screen-input" class="screen">
+    <header class="screen-header"><h1>記録する</h1></header>
+
+    <form id="record-form" class="card" novalidate>
+      <!-- 日付 -->
+      <label class="field">
+        <span class="field-label">日付</span>
+        <input type="date" id="input-date" required>
+      </label>
+
+      <!-- 部位 -->
+      <label class="field">
+        <span class="field-label">部位</span>
+        <select id="input-part"></select>
+      </label>
+
+      <!-- 種目（部位によって選択肢が変わる） -->
+      <label class="field">
+        <span class="field-label">種目</span>
+        <select id="input-exercise"></select>
+      </label>
+
+      <!-- 種目の追加 -->
+      <div class="add-exercise">
+        <input type="text" id="input-new-exercise" placeholder="新しい種目名" enterkeyhint="done">
+        <button type="button" id="btn-add-exercise" class="btn btn-sub">追加</button>
+      </div>
+
+      <!-- 重量・回数・セット数（数字キーボードが出るように inputmode を指定） -->
+      <div class="field-row">
+        <label class="field">
+          <span class="field-label">重量(kg)</span>
+          <input type="text" id="input-weight" inputmode="decimal" placeholder="空=自重">
+        </label>
+        <label class="field">
+          <span class="field-label">回数</span>
+          <input type="text" id="input-reps" inputmode="numeric" pattern="[0-9]*">
+        </label>
+        <label class="field">
+          <span class="field-label">セット</span>
+          <input type="text" id="input-sets" inputmode="numeric" pattern="[0-9]*">
+        </label>
+      </div>
+
+      <!-- メモ（任意） -->
+      <label class="field">
+        <span class="field-label">メモ（任意）</span>
+        <input type="text" id="input-memo" placeholder="フォームの意識など">
+      </label>
+
+      <!-- エラーメッセージの表示場所 -->
+      <p id="form-error" class="form-error" hidden></p>
+
+      <!-- 登録ボタン（編集中は「更新する」に変わる） -->
+      <button type="submit" id="btn-submit" class="btn btn-main">登録する</button>
+      <button type="button" id="btn-cancel-edit" class="btn btn-sub btn-block" hidden>編集をやめる</button>
+    </form>
+
+    <!-- その日の記録一覧 -->
+    <h2 id="list-title" class="list-title">この日の記録</h2>
+    <ul id="record-list" class="record-list"></ul>
+    <p id="list-empty" class="list-empty">まだ記録はありません</p>
+  </section>
+
+  <!-- ===== 画面下部のタブ ===== -->
+  <nav class="tab-bar">
+    <button type="button" class="tab" data-screen="home">
+      <span class="tab-icon">🏠</span><span>ホーム</span>
+    </button>
+    <button type="button" class="tab" data-screen="calendar">
+      <span class="tab-icon">📅</span><span>カレンダー</span>
+    </button>
+    <button type="button" class="tab is-active" data-screen="input">
+      <span class="tab-icon">✏️</span><span>入力</span>
+    </button>
+  </nav>
+
+  <script src="app.js"></script>
+</body>
+</html>

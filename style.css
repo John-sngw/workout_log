@@ -1,0 +1,304 @@
+/* ===== 色の設定（ライトモード） ===== */
+:root {
+  --bg: #f2f2f7;          /* 画面の背景 */
+  --card: #ffffff;        /* カードの背景 */
+  --text: #1c1c1e;        /* 文字 */
+  --sub-text: #6e6e73;    /* 薄い文字 */
+  --border: #d1d1d6;      /* 枠線 */
+  --accent: #ff6b00;      /* メインの色（ボタンなど） */
+  --accent-text: #ffffff; /* メイン色の上の文字 */
+  --danger: #ff3b30;      /* 削除など */
+  --tab-height: 64px;     /* 下のタブの高さ */
+}
+
+/* ===== 色の設定（ダークモード：端末の設定に従う） ===== */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #000000;
+    --card: #1c1c1e;
+    --text: #f2f2f7;
+    --sub-text: #98989f;
+    --border: #3a3a3c;
+    --accent: #ff8a3d;
+    --accent-text: #000000;
+    --danger: #ff453a;
+  }
+}
+
+/* ===== 全体 ===== */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-tap-highlight-color: transparent; /* タップ時の灰色の影を消す */
+}
+
+/* ===== 画面ごとの領域 ===== */
+.screen {
+  max-width: 600px;
+  margin: 0 auto;
+  /* 上はiPhoneの時計などの部分、下はタブの分だけ余白をあける */
+  padding: calc(env(safe-area-inset-top) + 8px) 16px
+           calc(var(--tab-height) + env(safe-area-inset-bottom) + 24px);
+}
+
+.screen[hidden] {
+  display: none;
+}
+
+.screen-header h1 {
+  font-size: 28px;
+  margin: 8px 0 16px;
+}
+
+.coming-soon {
+  text-align: center;
+  color: var(--sub-text);
+  font-size: 20px;
+  margin-top: 30vh;
+}
+
+/* ===== カード（フォームの枠） ===== */
+.card {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+/* ===== 入力欄 ===== */
+.field {
+  display: block;
+  margin-bottom: 14px;
+  min-width: 0;
+}
+
+.field-label {
+  display: block;
+  font-size: 14px;
+  color: var(--sub-text);
+  margin-bottom: 4px;
+}
+
+/* 文字サイズを16px以上にすると、iPhoneで入力時に勝手に拡大されない */
+input,
+select {
+  width: 100%;
+  height: 48px;
+  padding: 0 12px;
+  font-size: 17px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* セレクトボックスに下向き矢印を付ける */
+select {
+  background-image: linear-gradient(45deg, transparent 50%, var(--sub-text) 50%),
+                    linear-gradient(135deg, var(--sub-text) 50%, transparent 50%);
+  background-position: calc(100% - 20px) 50%, calc(100% - 14px) 50%;
+  background-size: 6px 6px;
+  background-repeat: no-repeat;
+  padding-right: 36px;
+}
+
+input:focus,
+select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+/* 重量・回数・セットを横に3つ並べる */
+.field-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+/* 種目追加の欄（入力欄と追加ボタンを横に並べる） */
+.add-exercise {
+  display: flex;
+  gap: 8px;
+  margin: -6px 0 14px;
+}
+
+.add-exercise input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ===== ボタン ===== */
+.btn {
+  height: 52px;
+  border: none;
+  border-radius: 12px;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn:active {
+  opacity: 0.7;
+}
+
+.btn-main {
+  width: 100%;
+  background: var(--accent);
+  color: var(--accent-text);
+  margin-top: 4px;
+}
+
+.btn-sub {
+  padding: 0 18px;
+  height: 48px;
+  background: var(--bg);
+  color: var(--accent);
+  border: 1px solid var(--border);
+}
+
+.btn-block {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.form-error {
+  color: var(--danger);
+  font-size: 15px;
+  margin: 0 0 10px;
+}
+
+/* ===== 記録一覧 ===== */
+.list-title {
+  font-size: 18px;
+  margin: 24px 0 10px;
+}
+
+.record-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.record-item {
+  background: var(--card);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  border: 2px solid transparent;
+}
+
+/* 編集中の記録は枠で目立たせる */
+.record-item.is-editing {
+  border-color: var(--accent);
+}
+
+.record-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.record-part {
+  font-size: 13px;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 0 6px;
+  flex-shrink: 0;
+}
+
+.record-exercise {
+  font-weight: 600;
+  font-size: 17px;
+}
+
+.record-detail {
+  font-size: 18px;
+  margin-top: 2px;
+}
+
+.record-memo {
+  font-size: 14px;
+  color: var(--sub-text);
+  margin-top: 2px;
+  word-break: break-all;
+}
+
+.record-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.record-actions button {
+  flex: 1;
+  height: 40px;
+  font-size: 15px;
+  font-weight: 600;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+}
+
+.record-actions .btn-delete {
+  color: var(--danger);
+}
+
+.list-empty {
+  color: var(--sub-text);
+  text-align: center;
+  margin: 16px 0;
+}
+
+/* ===== 画面下部のタブ ===== */
+.tab-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  height: calc(var(--tab-height) + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom); /* iPhoneのホームバーの分 */
+  background: var(--card);
+  border-top: 1px solid var(--border);
+}
+
+.tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: none;
+  border: none;
+  font-size: 12px;
+  color: var(--sub-text);
+}
+
+.tab-icon {
+  font-size: 22px;
+  line-height: 1;
+  filter: grayscale(1);
+  opacity: 0.6;
+}
+
+.tab.is-active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.tab.is-active .tab-icon {
+  filter: none;
+  opacity: 1;
+}
