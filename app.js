@@ -6,6 +6,11 @@
 const KEY_RECORDS = "workout_records";             // 記録の配列
 const KEY_CUSTOM = "workout_custom_exercises";     // 追加した種目の配列
 const KEY_SETTINGS = "workout_settings";           // 設定（週ごとの行く曜日）
+const KEY_DELETED = "workout_deleted_ids";         // 削除した記録のidの配列（復元で生き返らせないため）
+const KEY_BACKUP_INFO = "workout_backup_info";     // 前回のバックアップ日 { lastBackup: "YYYY-MM-DD" }
+
+// バックアップを何日しなかったら知らせるか
+const BACKUP_REMIND_DAYS = 14;
 
 // ----- 部位ごとの初期の種目 -----
 const DEFAULT_EXERCISES = {
@@ -69,6 +74,11 @@ const pbAnimal = document.getElementById("pb-animal");
 const pbAnimalText = document.getElementById("pb-animal-text");
 const pbDetail = document.getElementById("pb-detail");
 const btnPbOk = document.getElementById("pb-ok");
+const backupLast = document.getElementById("backup-last");
+const btnExport = document.getElementById("btn-export");
+const btnImport = document.getElementById("btn-import");
+const inputImport = document.getElementById("input-import");
+const planBackupNote = document.getElementById("plan-backup-note");
 
 // 種目別で開いている部位と、グラフを開いている種目
 const openParts = new Set();
@@ -395,6 +405,13 @@ function deleteRecord(id) {
 
   save(KEY_RECORDS, records.filter((r) => r.id !== id));
 
+  // 削除したidを覚えておく（バックアップから復元しても、この記録は戻さない）
+  const deletedIds = load(KEY_DELETED, []);
+  if (!deletedIds.includes(id)) {
+    deletedIds.push(id);
+    save(KEY_DELETED, deletedIds);
+  }
+
   // 編集中の記録を削除した場合は、編集をやめる
   if (editingId === id) {
     clearNumbers();
@@ -411,6 +428,7 @@ function renderAll() {
   renderHome();
   renderRanking();
   renderPartList();
+  renderBackupInfo();
 }
 
 // =============================================
@@ -775,6 +793,11 @@ function openPlanModal(mode) {
     ? `今週（${thisWeekRangeText()}）の予定を変更`
     : `今週（${thisWeekRangeText()}）の予定`;
   btnPlanLater.textContent = mode === "edit" ? "キャンセル" : "あとで";
+
+  // 自動で出したときだけ、必要ならバックアップのリマインドを添える
+  const reminder = mode === "ask" ? backupReminderText() : "";
+  planBackupNote.textContent = reminder;
+  planBackupNote.hidden = !reminder;
 
   renderPlanDays();
   planModal.hidden = false;
@@ -1231,6 +1254,200 @@ function closePbModal() {
 }
 
 // =============================================
+// データのバックアップ（書き出し・復元）
+// =============================================
+// バックアップファイルの中身：
+// { app: "workout_log", version: 1, exportedAt: "日時",
+//   records: [...], customExercises: [...], settings: {...}, deletedIds: [...] }
+
+const BACKUP_FILE_NAME = "workout_backup.json"; // 毎回同じ名前（同じ場所に保存すると置き換えられる）
+
+// 2つの日付（"YYYY-MM-DD"）の間の日数
+function daysBetween(from, to) {
+  const toUtc = (dateStr) => {
+    const [y, m, d] = dateStr.split("-").map(Number);
+    return Date.UTC(y, m - 1, d);
+  };
+  return Math.round((toUtc(to) - toUtc(from)) / 86400000);
+}
+
+// 前回のバックアップ日（まだなら null）
+function getLastBackup() {
+  return load(KEY_BACKUP_INFO, {}).lastBackup || null;
+}
+
+// バックアップのリマインドの文（不要なら空文字）
+// 記録が1件以上あり、「一度もしていない」か「前回から14日以上」なら知らせる
+function backupReminderText() {
+  if (load(KEY_RECORDS, []).length === 0) return "";
+  const last = getLastBackup();
+  if (!last) {
+    return "まだバックアップしていません。ホームの「データのバックアップ」から書き出しておきましょう";
+  }
+  const days = daysBetween(last, todayString());
+  if (days >= BACKUP_REMIND_DAYS) {
+    return `前回のバックアップから${days}日たっています。ホームの「データのバックアップ」から書き出しておきましょう`;
+  }
+  return "";
+}
+
+// ホームのバックアップ欄に、前回のバックアップ日を表示する
+function renderBackupInfo() {
+  const last = getLastBackup();
+  if (!last) {
+    backupLast.textContent = "前回のバックアップ：まだありません";
+  } else {
+    const days = daysBetween(last, todayString());
+    backupLast.textContent = `前回のバックアップ：${formatDate(last)}（${days === 0 ? "今日" : `${days}日前`}）`;
+  }
+  backupLast.classList.toggle("is-old", backupReminderText() !== "");
+}
+
+// 書き出しが終わったら、今日をバックアップ日として覚える
+function markBackedUp() {
+  save(KEY_BACKUP_INFO, { lastBackup: todayString() });
+  renderBackupInfo();
+}
+
+// 「バックアップを書き出す」：全データを1つのファイルにまとめて保存する
+async function exportBackup() {
+  const backup = {
+    app: "workout_log",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    records: load(KEY_RECORDS, []),
+    customExercises: load(KEY_CUSTOM, []),
+    settings: loadSettings(),
+    deletedIds: load(KEY_DELETED, []),
+  };
+  const text = JSON.stringify(backup, null, 1);
+  const file = new File([text], BACKUP_FILE_NAME, { type: "application/json" });
+
+  // iPhoneでは「共有」画面を開く（「"ファイル"に保存」やAirDropを選べる）
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: "筋トレノートのバックアップ" });
+      markBackedUp();
+      return;
+    } catch (error) {
+      // 共有画面で「キャンセル」した場合は、何もしない
+      if (error.name === "AbortError") return;
+      // それ以外のエラーは、下のダウンロードで保存する
+    }
+  }
+
+  // 共有画面が使えない場合：ファイルとしてダウンロードする
+  const url = URL.createObjectURL(file);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = BACKUP_FILE_NAME;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  markBackedUp();
+}
+
+// 記録の形が正しいかを確認する（壊れたデータを取り込まないため）
+function isValidRecord(r) {
+  return (
+    r && typeof r.id === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.date) &&
+    typeof r.part === "string" && typeof r.exercise === "string" &&
+    typeof r.weight === "number" && typeof r.reps === "number" && typeof r.sets === "number"
+  );
+}
+
+// アプリのデータとバックアップを、記録のidで突き合わせてまとめる（マージ）
+// ・両方にある記録      → アプリ側を使う（あとで編集した内容を残す）
+// ・アプリにだけある記録 → そのまま残す（バックアップ後に入れた記録を守る）
+// ・バックアップにだけある記録 → 戻す（消えてしまった記録を復元する）
+// ・削除したidの記録   → どちらにあっても戻さない
+function mergeBackup(backup) {
+  const appRecords = load(KEY_RECORDS, []);
+  const deleted = new Set([...load(KEY_DELETED, []), ...(backup.deletedIds || [])]);
+  const appIds = new Set(appRecords.map((r) => r.id));
+
+  // 記録
+  const kept = appRecords.filter((r) => !deleted.has(r.id));
+  const added = backup.records.filter((r) => isValidRecord(r) && !appIds.has(r.id) && !deleted.has(r.id));
+  const removedCount = appRecords.length - kept.length;
+
+  // 追加した種目（部位と名前が同じものは1つにする）
+  const custom = load(KEY_CUSTOM, []);
+  const customKeys = new Set(custom.map((c) => `${c.part}|${c.name}`));
+  const addedCustom = (backup.customExercises || []).filter(
+    (c) => c && PARTS.includes(c.part) && typeof c.name === "string" && !customKeys.has(`${c.part}|${c.name}`)
+  );
+
+  // 週の予定（同じ週があればアプリ側を使う）
+  const settings = loadSettings();
+  const backupTargets = (backup.settings && backup.settings.weeklyTargets) || {};
+  const addedWeeks = Object.keys(backupTargets).filter(
+    (week) => !(week in settings.weeklyTargets) && Array.isArray(backupTargets[week])
+  );
+
+  return {
+    records: [...kept, ...added],
+    customExercises: [...custom, ...addedCustom],
+    weeklyTargets: {
+      ...settings.weeklyTargets,
+      ...Object.fromEntries(addedWeeks.map((week) => [week, backupTargets[week]])),
+    },
+    deletedIds: [...deleted],
+    addedCount: added.length,
+    removedCount: removedCount,
+    addedCustomCount: addedCustom.length,
+    addedWeekCount: addedWeeks.length,
+  };
+}
+
+// 「バックアップから復元」：選んだファイルを読み込んで、アプリのデータとまとめる
+async function importBackup(file) {
+  let backup;
+  try {
+    backup = JSON.parse(await file.text());
+  } catch (error) {
+    alert("ファイルを読み込めませんでした。バックアップのファイル（workout_backup.json）を選んでください");
+    return;
+  }
+  if (!backup || backup.app !== "workout_log" || !Array.isArray(backup.records)) {
+    alert("筋トレノートのバックアップではないようです。ファイルを確認してください");
+    return;
+  }
+
+  const result = mergeBackup(backup);
+  const createdText = backup.exportedAt ? formatDate(dateToString(new Date(backup.exportedAt))) : "日付不明";
+
+  // 何が変わるかを見せてから、実行するか確認する
+  const lines = [
+    `${createdText}に作ったバックアップから復元します。`,
+    "",
+    `・戻す記録：${result.addedCount}件`,
+  ];
+  if (result.removedCount > 0) lines.push(`・削除済みのため消す記録：${result.removedCount}件`);
+  if (result.addedCustomCount > 0) lines.push(`・戻す種目：${result.addedCustomCount}件`);
+  if (result.addedWeekCount > 0) lines.push(`・戻す週の予定：${result.addedWeekCount}週分`);
+  lines.push(
+    "",
+    result.removedCount > 0
+      ? "それ以外の、今アプリにある記録はそのまま残ります。よろしいですか？"
+      : "今アプリにある記録はそのまま残ります。よろしいですか？"
+  );
+
+  if (!confirm(lines.join("\n"))) return;
+
+  save(KEY_RECORDS, result.records);
+  save(KEY_CUSTOM, result.customExercises);
+  save(KEY_SETTINGS, { weeklyTargets: result.weeklyTargets });
+  save(KEY_DELETED, result.deletedIds);
+
+  // 戻した種目を選択肢に反映する（選んでいた種目はそのまま）
+  renderExercises(inputExercise.value === NEW_EXERCISE ? lastExercise : inputExercise.value);
+  renderAll();
+  alert(`復元しました（戻した記録：${result.addedCount}件）`);
+}
+
+// =============================================
 // ホームの中のタブ（今週／ランキング／種目別）
 // =============================================
 
@@ -1300,6 +1517,14 @@ function init() {
   btnPlanLater.addEventListener("click", closePlanModal);
   btnPlanRest.addEventListener("click", restThisWeek);
   btnPbOk.addEventListener("click", closePbModal);
+  btnExport.addEventListener("click", exportBackup);
+  // 「バックアップから復元」は、隠してあるファイル選択を開く
+  btnImport.addEventListener("click", () => inputImport.click());
+  inputImport.addEventListener("change", async () => {
+    const file = inputImport.files[0];
+    inputImport.value = ""; // 同じファイルをもう一度選べるように空にしておく
+    if (file) await importBackup(file);
+  });
   setupHomeTabs();
 
   // アプリに戻ってきたとき（ホーム画面のアプリは裏で残っていることがあるため）も確認する
