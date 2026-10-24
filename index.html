@@ -20,10 +20,26 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- ===== ホーム画面（フェーズ4で作る） ===== -->
+  <!-- ===== ホーム画面（今週の目標と実績） ===== -->
   <section id="screen-home" class="screen" hidden>
     <header class="screen-header"><h1>ホーム</h1></header>
-    <p class="coming-soon">準備中</p>
+
+    <div class="card home-week">
+      <p id="home-range" class="home-range"></p>
+      <!-- 「今週 2/3回」 -->
+      <p class="home-count">
+        今週 <strong id="home-done">0</strong><span class="home-slash">/</span><span id="home-target">-</span>回
+      </p>
+      <p id="home-message" class="home-message"></p>
+      <!-- 日〜土の7つの丸（予定日は枠線、実施日は塗りつぶし） -->
+      <div id="home-days" class="home-days"></div>
+      <p class="home-legend">
+        <span><i class="legend-mark is-plan"></i>予定</span>
+        <span><i class="legend-mark is-done"></i>実施</span>
+      </p>
+    </div>
+
+    <button type="button" id="btn-edit-plan" class="btn btn-sub btn-block">今週の予定を変更</button>
   </section>
 
   <!-- ===== カレンダー画面（上：月のカレンダー／下：履歴の一覧） ===== -->
@@ -118,6 +134,22 @@
   </section>
 
   <!-- ===== 画面下部のタブ ===== -->
+  <!-- ===== 今週の予定を登録するメッセージ（画面の上に重ねて表示） ===== -->
+  <div id="plan-modal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="plan-title">
+    <div class="modal-box">
+      <h2 id="plan-title" class="modal-title"></h2>
+      <p class="modal-sub">ジムに行く曜日を選んでください</p>
+      <!-- 日〜土のボタン（タップで選択／解除） -->
+      <div id="plan-days" class="plan-days"></div>
+      <p class="plan-count">今週の目標：<strong id="plan-count">0</strong>回</p>
+      <button type="button" id="plan-ok" class="btn btn-main">OK</button>
+      <div class="modal-actions">
+        <button type="button" id="plan-later" class="btn btn-sub">あとで</button>
+        <button type="button" id="plan-rest" class="btn btn-sub">今週は休み</button>
+      </div>
+    </div>
+  </div>
+
   <nav class="tab-bar">
     <button type="button" class="tab" data-screen="home">
       <span class="tab-icon">🏠</span><span>ホーム</span>

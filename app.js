@@ -5,7 +5,7 @@
 // ----- localStorage のキー名 -----
 const KEY_RECORDS = "workout_records";             // 記録の配列
 const KEY_CUSTOM = "workout_custom_exercises";     // 追加した種目の配列
-const KEY_SETTINGS = "workout_settings";           // 設定（フェーズ4で使う）
+const KEY_SETTINGS = "workout_settings";           // 設定（週ごとの行く曜日）
 
 // ----- 部位ごとの初期の種目 -----
 const DEFAULT_EXERCISES = {
@@ -43,6 +43,26 @@ const calTitle = document.getElementById("cal-title");
 const calGrid = document.getElementById("cal-grid");
 const btnCalPrev = document.getElementById("cal-prev");
 const btnCalNext = document.getElementById("cal-next");
+
+const homeRange = document.getElementById("home-range");
+const homeDone = document.getElementById("home-done");
+const homeTarget = document.getElementById("home-target");
+const homeMessage = document.getElementById("home-message");
+const homeDays = document.getElementById("home-days");
+const btnEditPlan = document.getElementById("btn-edit-plan");
+const planModal = document.getElementById("plan-modal");
+const planTitle = document.getElementById("plan-title");
+const planDays = document.getElementById("plan-days");
+const planCount = document.getElementById("plan-count");
+const btnPlanOk = document.getElementById("plan-ok");
+const btnPlanLater = document.getElementById("plan-later");
+const btnPlanRest = document.getElementById("plan-rest");
+
+// 曜日の名前（0=日 〜 6=土）
+const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+
+// 予定の登録メッセージで選んでいる曜日（0=日 〜 6=土）
+let planSelected = [];
 
 // カレンダーで表示している年と月（月は 0=1月 〜 11=12月）
 let calYear = new Date().getFullYear();
@@ -365,6 +385,7 @@ function renderAll() {
   renderList();
   renderHistory();
   renderCalendar();
+  renderHome();
 }
 
 // =============================================
@@ -660,6 +681,205 @@ function changeMonth(diff) {
 }
 
 // =============================================
+// 週ごとの予定（行く曜日）
+// =============================================
+// 保存の形：{ weeklyTargets: { "その週の日曜の日付": [行く曜日の番号], ... } }
+// 例：{ weeklyTargets: { "2026-10-25": [1, 3, 5] } } → 10/25の週は月・水・金
+// 「今週は休み」は空の配列 [] で保存する
+
+// 設定を読み込む（古い形や空のときは、新しい形に整える）
+function loadSettings() {
+  const settings = load(KEY_SETTINGS, {});
+  return { weeklyTargets: settings.weeklyTargets || {} };
+}
+
+// 指定した日を含む週の、日曜日の Date を返す
+function getWeekStart(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() - date.getDay());
+}
+
+// Date を "YYYY-MM-DD" にする
+function dateToString(date) {
+  return toDateString(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+// 今週の目印（今週の日曜の日付 "YYYY-MM-DD"）
+function currentWeekKey() {
+  return dateToString(getWeekStart(new Date()));
+}
+
+// 今週の予定（曜日の配列）を返す。まだ登録していなければ null
+function getThisWeekTarget() {
+  const target = loadSettings().weeklyTargets[currentWeekKey()];
+  return Array.isArray(target) ? target : null;
+}
+
+// 今週の予定を保存する
+function saveThisWeekTarget(days) {
+  const settings = loadSettings();
+  settings.weeklyTargets[currentWeekKey()] = days;
+  save(KEY_SETTINGS, settings);
+}
+
+// 今週より前で、いちばん新しい週の予定を返す（なければ空の配列）
+function getLastWeekTarget() {
+  const targets = loadSettings().weeklyTargets;
+  const thisWeek = currentWeekKey();
+  const pastKeys = Object.keys(targets).filter((key) => key < thisWeek).sort();
+  return pastKeys.length > 0 ? targets[pastKeys[pastKeys.length - 1]] : [];
+}
+
+// 「10/25〜10/31」の形で今週の期間を返す
+function thisWeekRangeText() {
+  const start = getWeekStart(new Date());
+  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
+  return `${start.getMonth() + 1}/${start.getDate()}〜${end.getMonth() + 1}/${end.getDate()}`;
+}
+
+// =============================================
+// 予定の登録メッセージ
+// =============================================
+
+// メッセージを開く
+// mode："ask"（未登録のときに自動で出す）／"edit"（ホームの「変更」ボタンから開く）
+function openPlanModal(mode) {
+  // 最初に選んでおく曜日：今週の予定があればそれ、なければ前の週と同じ
+  planSelected = [...(getThisWeekTarget() || getLastWeekTarget())];
+
+  planTitle.textContent = mode === "edit"
+    ? `今週（${thisWeekRangeText()}）の予定を変更`
+    : `今週（${thisWeekRangeText()}）の予定`;
+  btnPlanLater.textContent = mode === "edit" ? "キャンセル" : "あとで";
+
+  renderPlanDays();
+  planModal.hidden = false;
+  document.body.classList.add("modal-open");
+}
+
+// メッセージを閉じる
+function closePlanModal() {
+  planModal.hidden = true;
+  document.body.classList.remove("modal-open");
+}
+
+// 日〜土のボタンを作る
+function renderPlanDays() {
+  planDays.innerHTML = "";
+  WEEKDAYS.forEach((name, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "plan-day";
+    button.textContent = name;
+    const selected = planSelected.includes(index);
+    button.classList.toggle("is-selected", selected);
+    button.setAttribute("aria-pressed", selected);
+    button.addEventListener("click", () => togglePlanDay(index));
+    planDays.appendChild(button);
+  });
+
+  // 選んだ数がそのまま今週の目標回数になる
+  planCount.textContent = planSelected.length;
+  // 1つも選んでいないときは OK を押せない（休みなら「今週は休み」を押す）
+  btnPlanOk.disabled = planSelected.length === 0;
+}
+
+// 曜日のボタンを押したとき：選択／解除を切り替える
+function togglePlanDay(index) {
+  if (planSelected.includes(index)) {
+    planSelected = planSelected.filter((d) => d !== index);
+  } else {
+    planSelected = [...planSelected, index].sort((a, b) => a - b); // 日→土の順に並べる
+  }
+  renderPlanDays();
+}
+
+// 「OK」：選んだ曜日を今週の予定として保存する
+function submitPlan() {
+  saveThisWeekTarget(planSelected);
+  closePlanModal();
+  renderHome();
+}
+
+// 「今週は休み」：0回の予定として保存する
+function restThisWeek() {
+  saveThisWeekTarget([]);
+  closePlanModal();
+  renderHome();
+}
+
+// 今週の予定がまだなければ、メッセージを出す
+// （アプリを開いたときと、アプリに戻ってきたときに呼ぶ）
+function checkWeeklyPlan() {
+  renderHome(); // 日付が変わっている場合もあるので、ホームを作り直す
+  if (!planModal.hidden) return; // すでに開いているときは何もしない
+  if (getThisWeekTarget() === null) {
+    openPlanModal("ask");
+  }
+}
+
+// =============================================
+// ホーム画面（今週の目標と実績）
+// =============================================
+
+function renderHome() {
+  const target = getThisWeekTarget(); // 予定の曜日（未登録なら null）
+  const start = getWeekStart(new Date());
+  const today = todayString();
+
+  // 記録がある日（同じ日に何件あっても1日と数える）
+  const trainedDates = new Set(load(KEY_RECORDS, []).map((r) => r.date));
+
+  homeRange.textContent = thisWeekRangeText();
+  homeDays.innerHTML = "";
+  let done = 0;
+
+  // 日〜土の7つの丸を作る
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    const dateStr = dateToString(date);
+    const isPlan = target !== null && target.includes(i);
+    const isDone = trainedDates.has(dateStr); // 予定日以外に行った日も実施として数える
+    if (isDone) done++;
+
+    const day = document.createElement("div");
+    day.className = "home-day";
+    if (dateStr === today) day.classList.add("is-today");
+
+    const label = document.createElement("span");
+    label.textContent = WEEKDAYS[i];
+    if (i === 0) label.className = "sun";
+    if (i === 6) label.className = "sat";
+
+    const circle = document.createElement("div");
+    circle.className = "home-circle";
+    if (isPlan) circle.classList.add("is-plan");
+    if (isDone) circle.classList.add("is-done");
+    circle.textContent = date.getDate();
+
+    day.append(label, circle);
+    homeDays.appendChild(day);
+  }
+
+  // 「今週 2/3回」と、その下のひとこと
+  homeDone.textContent = done;
+  if (target === null) {
+    homeTarget.textContent = "-";
+    homeMessage.textContent = "今週の予定がまだ登録されていません";
+    btnEditPlan.textContent = "今週の予定を登録";
+  } else {
+    homeTarget.textContent = target.length;
+    btnEditPlan.textContent = "今週の予定を変更";
+    if (target.length === 0) {
+      homeMessage.textContent = "今週は休みの予定です";
+    } else if (done >= target.length) {
+      homeMessage.textContent = "今週の目標を達成しました！";
+    } else {
+      homeMessage.textContent = `目標まであと${target.length - done}回`;
+    }
+  }
+}
+
+// =============================================
 // 画面下部のタブ切り替え
 // =============================================
 
@@ -687,10 +907,8 @@ function setupTabs() {
 // =============================================
 
 function init() {
-  // 設定がまだなければ初期値を保存しておく（フェーズ4で使う）
-  if (!localStorage.getItem(KEY_SETTINGS)) {
-    save(KEY_SETTINGS, { targetDays: [] });
-  }
+  // 設定を新しい形（週ごとの予定）で保存し直す（古い targetDays は使わないので消える）
+  save(KEY_SETTINGS, loadSettings());
 
   inputDate.value = todayString(); // 日付の初期値は今日
   renderParts();
@@ -708,6 +926,17 @@ function init() {
   btnCalPrev.addEventListener("click", () => changeMonth(-1));
   btnCalNext.addEventListener("click", () => changeMonth(1));
   btnCancelEdit.addEventListener("click", cancelEdit);
+  btnEditPlan.addEventListener("click", () => openPlanModal("edit"));
+  btnPlanOk.addEventListener("click", submitPlan);
+  btnPlanLater.addEventListener("click", closePlanModal);
+  btnPlanRest.addEventListener("click", restThisWeek);
+
+  // アプリに戻ってきたとき（ホーム画面のアプリは裏で残っていることがあるため）も確認する
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") checkWeeklyPlan();
+  });
+  // 開いたとき：今週の予定がまだなら、メッセージを出す
+  checkWeeklyPlan();
 
   // 種目追加の欄でEnter（完了）を押したら、登録ではなく種目の追加にする
   inputNewExercise.addEventListener("keydown", (event) => {
