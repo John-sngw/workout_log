@@ -49,6 +49,20 @@
       </div>
 
       <button type="button" id="btn-edit-plan" class="btn btn-sub btn-block">今週の予定を変更</button>
+
+      <!-- データのバックアップ（書き出し・復元） -->
+      <div class="card backup">
+        <h2 class="backup-title">データのバックアップ</h2>
+        <p id="backup-last" class="backup-last"></p>
+        <button type="button" id="btn-export" class="btn btn-main">バックアップを書き出す</button>
+        <button type="button" id="btn-import" class="btn btn-sub btn-block">バックアップから復元</button>
+        <!-- 「バックアップから復元」を押したときに開くファイル選択（画面には出さない） -->
+        <input type="file" id="input-import" accept=".json,application/json" hidden>
+        <p class="backup-note">
+          「ファイル」アプリのiCloud Driveに保存しておくと安心です。
+          ファイル名は毎回「workout_backup.json」なので、同じ場所に保存すると前回の分と置き換えられます。
+        </p>
+      </div>
     </div>
 
     <!-- ランキング：種目ごとの自己ベスト（推定MAX）を重い順に -->
@@ -165,6 +179,8 @@
       <!-- 日〜土のボタン（タップで選択／解除） -->
       <div id="plan-days" class="plan-days"></div>
       <p class="plan-count">今週の目標：<strong id="plan-count">0</strong>回</p>
+      <!-- バックアップのリマインド（必要なときだけ表示） -->
+      <p id="plan-backup-note" class="plan-backup-note" hidden></p>
       <button type="button" id="plan-ok" class="btn btn-main">OK</button>
       <div class="modal-actions">
         <button type="button" id="plan-later" class="btn btn-sub">あとで</button>
