@@ -57,10 +57,11 @@
         <select id="input-exercise"></select>
       </label>
 
-      <!-- 種目の追加 -->
-      <div class="add-exercise">
+      <!-- 種目の追加（種目で「＋ 新しい種目を入力」を選んだときだけ表示） -->
+      <div id="add-exercise" class="add-exercise" hidden>
         <input type="text" id="input-new-exercise" placeholder="新しい種目名" enterkeyhint="done">
         <button type="button" id="btn-add-exercise" class="btn btn-sub">追加</button>
+        <button type="button" id="btn-cancel-exercise" class="btn btn-sub btn-plain">キャンセル</button>
       </div>
 
       <!-- 重量・回数・セット数（数字キーボードが出るように inputmode を指定） -->

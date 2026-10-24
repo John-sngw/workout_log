@@ -23,8 +23,10 @@ const form = document.getElementById("record-form");
 const inputDate = document.getElementById("input-date");
 const inputPart = document.getElementById("input-part");
 const inputExercise = document.getElementById("input-exercise");
+const addExerciseBox = document.getElementById("add-exercise");
 const inputNewExercise = document.getElementById("input-new-exercise");
 const btnAddExercise = document.getElementById("btn-add-exercise");
+const btnCancelExercise = document.getElementById("btn-cancel-exercise");
 const inputWeight = document.getElementById("input-weight");
 const inputReps = document.getElementById("input-reps");
 const inputSets = document.getElementById("input-sets");
@@ -40,6 +42,12 @@ const historyEmpty = document.getElementById("history-empty");
 
 // 編集中の記録のid（編集していないときは null）
 let editingId = null;
+
+// 種目のプルダウンの最後に出す「新しい種目を入力」の値（種目名と重ならない特別な値）
+const NEW_EXERCISE = "__new__";
+
+// 「新しい種目を入力」を選ぶ前に選んでいた種目（キャンセルしたら元に戻すため）
+let lastExercise = "";
 
 // =============================================
 // localStorage の読み書き
@@ -130,9 +138,42 @@ function renderExercises(selectedName) {
     inputExercise.appendChild(option);
   });
 
+  // いちばん下に「新しい種目を入力」を追加する
+  const newOption = document.createElement("option");
+  newOption.value = NEW_EXERCISE;
+  newOption.textContent = "＋ 新しい種目を入力";
+  inputExercise.appendChild(newOption);
+
   if (selectedName) {
     inputExercise.value = selectedName;
   }
+  lastExercise = inputExercise.value;
+  closeAddExercise();
+}
+
+// 種目のプルダウンを変えたとき
+function handleExerciseChange() {
+  if (inputExercise.value === NEW_EXERCISE) {
+    // 「新しい種目を入力」を選んだら、追加の欄を表示する
+    addExerciseBox.hidden = false;
+    inputNewExercise.focus();
+  } else {
+    lastExercise = inputExercise.value;
+    closeAddExercise();
+  }
+}
+
+// 種目の追加の欄を閉じる
+function closeAddExercise() {
+  addExerciseBox.hidden = true;
+  inputNewExercise.value = "";
+}
+
+// 種目の追加をやめる（直前に選んでいた種目に戻す）
+function cancelAddExercise() {
+  inputExercise.value = lastExercise;
+  closeAddExercise();
+  showError("");
 }
 
 // 種目を追加する
@@ -144,20 +185,15 @@ function addExercise() {
     showError("追加する種目名を入力してください");
     return;
   }
-  if (getExercises(part).includes(name)) {
-    // すでにある種目なら、それを選ぶだけにする
-    renderExercises(name);
-    inputNewExercise.value = "";
-    showError("");
-    return;
+
+  // まだない種目なら保存する（すでにある種目なら、それを選ぶだけ）
+  if (!getExercises(part).includes(name)) {
+    const custom = load(KEY_CUSTOM, []);
+    custom.push({ part: part, name: name });
+    save(KEY_CUSTOM, custom);
   }
 
-  const custom = load(KEY_CUSTOM, []);
-  custom.push({ part: part, name: name });
-  save(KEY_CUSTOM, custom);
-
-  renderExercises(name); // 追加した種目を選んだ状態にする
-  inputNewExercise.value = "";
+  renderExercises(name); // 追加した種目を選んだ状態にする（追加の欄も閉じる）
   showError("");
 }
 
@@ -188,6 +224,10 @@ function readForm() {
   }
   if (!inputExercise.value) {
     showError("種目を選んでください");
+    return null;
+  }
+  if (inputExercise.value === NEW_EXERCISE) {
+    showError("新しい種目を「追加」するか、キャンセルしてください");
     return null;
   }
   // 重量は空欄OK（自重のとき）。入力した場合は0以上の数字
@@ -319,57 +359,82 @@ function renderAll() {
 }
 
 // =============================================
-// 記録1件分の表示（入力画面と履歴で共通）
+// 記録の表示（入力画面と履歴で共通）
 // =============================================
 
-// 記録1件分の部品（li）を作る
-// onEdit：「編集」を押したときに実行する処理
-function createRecordItem(record, onEdit) {
+// 連続して登録した「同じ部位・同じ種目」の記録を1つのグループにまとめる
+// 例：[ベンチ, ベンチ, カール, ベンチ] → [[ベンチ, ベンチ], [カール], [ベンチ]]
+// （間に別の種目が入ったら別のグループにする。スーパーセットなどの順番を残すため）
+function groupConsecutive(records) {
+  const groups = [];
+  records.forEach((record) => {
+    const lastGroup = groups[groups.length - 1];
+    if (lastGroup && lastGroup[0].part === record.part && lastGroup[0].exercise === record.exercise) {
+      lastGroup.push(record);
+    } else {
+      groups.push([record]);
+    }
+  });
+  return groups;
+}
+
+// 1つのグループ（同じ種目の連続した記録）を、1つの枠（li）にして作る
+// onEdit：「編集」を押したときに実行する処理（記録のidを受け取る）
+function createGroupItem(group, onEdit) {
   const li = document.createElement("li");
   li.className = "record-item";
-  if (record.id === editingId) li.classList.add("is-editing");
 
   // 1行目：部位と種目
   const head = document.createElement("div");
   head.className = "record-head";
   const part = document.createElement("span");
   part.className = "record-part";
-  part.textContent = record.part;
+  part.textContent = group[0].part;
   const exercise = document.createElement("span");
   exercise.className = "record-exercise";
-  exercise.textContent = record.exercise;
+  exercise.textContent = group[0].exercise;
   head.append(part, exercise);
+  li.appendChild(head);
 
-  // 2行目：重量 × 回数 × セット
-  const detail = document.createElement("div");
-  detail.className = "record-detail";
-  const weightText = record.weight === 0 ? "自重" : `${record.weight}kg`;
-  detail.textContent = `${weightText} × ${record.reps}回 × ${record.sets}セット`;
+  // 2行目から：1回の登録ごとに1行（重量 × 回数 × セット ＋ 編集・削除ボタン）
+  group.forEach((record) => {
+    const row = document.createElement("div");
+    row.className = "set-row";
+    if (record.id === editingId) row.classList.add("is-editing");
 
-  li.append(head, detail);
+    const main = document.createElement("div");
+    main.className = "set-main";
+    const detail = document.createElement("div");
+    detail.className = "record-detail";
+    const weightText = record.weight === 0 ? "自重" : `${record.weight}kg`;
+    detail.textContent = `${weightText} × ${record.reps}回 × ${record.sets}セット`;
+    main.appendChild(detail);
 
-  // 3行目：メモ（あるときだけ）
-  if (record.memo) {
-    const memo = document.createElement("div");
-    memo.className = "record-memo";
-    memo.textContent = record.memo;
-    li.appendChild(memo);
-  }
+    // メモ（あるときだけ）
+    if (record.memo) {
+      const memo = document.createElement("div");
+      memo.className = "record-memo";
+      memo.textContent = record.memo;
+      main.appendChild(memo);
+    }
 
-  // 編集・削除ボタン
-  const actions = document.createElement("div");
-  actions.className = "record-actions";
-  const btnEdit = document.createElement("button");
-  btnEdit.type = "button";
-  btnEdit.textContent = "編集";
-  btnEdit.addEventListener("click", onEdit);
-  const btnDelete = document.createElement("button");
-  btnDelete.type = "button";
-  btnDelete.className = "btn-delete";
-  btnDelete.textContent = "削除";
-  btnDelete.addEventListener("click", () => deleteRecord(record.id));
-  actions.append(btnEdit, btnDelete);
-  li.appendChild(actions);
+    // 編集・削除ボタン
+    const actions = document.createElement("div");
+    actions.className = "record-actions";
+    const btnEdit = document.createElement("button");
+    btnEdit.type = "button";
+    btnEdit.textContent = "編集";
+    btnEdit.addEventListener("click", () => onEdit(record.id));
+    const btnDelete = document.createElement("button");
+    btnDelete.type = "button";
+    btnDelete.className = "btn-delete";
+    btnDelete.textContent = "削除";
+    btnDelete.addEventListener("click", () => deleteRecord(record.id));
+    actions.append(btnEdit, btnDelete);
+
+    row.append(main, actions);
+    li.appendChild(row);
+  });
 
   return li;
 }
@@ -387,8 +452,8 @@ function renderList() {
   recordList.innerHTML = "";
   listEmpty.hidden = records.length > 0;
 
-  records.forEach((record) => {
-    recordList.appendChild(createRecordItem(record, () => startEdit(record.id)));
+  groupConsecutive(records).forEach((group) => {
+    recordList.appendChild(createGroupItem(group, startEdit));
   });
 }
 
@@ -434,8 +499,8 @@ function renderHistory() {
     // その日の記録
     const list = document.createElement("ul");
     list.className = "record-list";
-    dayRecords.forEach((record) => {
-      list.appendChild(createRecordItem(record, () => editFromHistory(record.id)));
+    groupConsecutive(dayRecords).forEach((group) => {
+      list.appendChild(createGroupItem(group, editFromHistory));
     });
 
     day.append(head, list);
@@ -492,7 +557,9 @@ function init() {
   form.addEventListener("submit", handleSubmit);
   inputPart.addEventListener("change", () => renderExercises());
   inputDate.addEventListener("change", renderList);
+  inputExercise.addEventListener("change", handleExerciseChange);
   btnAddExercise.addEventListener("click", addExercise);
+  btnCancelExercise.addEventListener("click", cancelAddExercise);
   btnCancelEdit.addEventListener("click", cancelEdit);
 
   // 種目追加の欄でEnter（完了）を押したら、登録ではなく種目の追加にする

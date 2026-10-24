@@ -140,9 +140,19 @@ select:focus {
   margin: -6px 0 14px;
 }
 
+.add-exercise[hidden] {
+  display: none;
+}
+
 .add-exercise input {
   flex: 1;
   min-width: 0;
+}
+
+/* 種目追加の「キャンセル」：目立たない見た目にする */
+.add-exercise .btn-plain {
+  padding: 0 10px;
+  color: var(--sub-text);
 }
 
 /* ===== ボタン ===== */
@@ -205,9 +215,28 @@ select:focus {
   border: 2px solid transparent;
 }
 
-/* 編集中の記録は枠で目立たせる */
-.record-item.is-editing {
-  border-color: var(--accent);
+/* 1つの枠の中の、1回分の記録（重量・回数・セット）の行 */
+.set-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+
+.set-row:first-of-type {
+  margin-top: 6px;
+}
+
+.set-main {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 編集中の行は色を付けて目立たせる */
+.set-row.is-editing .record-detail {
+  color: var(--accent);
+  font-weight: 700;
 }
 
 .record-head {
@@ -242,16 +271,17 @@ select:focus {
   word-break: break-all;
 }
 
+/* 行ごとの小さい「編集」「削除」ボタン */
 .record-actions {
   display: flex;
-  gap: 8px;
-  margin-top: 8px;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .record-actions button {
-  flex: 1;
+  width: 52px;
   height: 40px;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   background: var(--bg);
   border: 1px solid var(--border);
