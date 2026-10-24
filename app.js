@@ -58,6 +58,22 @@ const btnPlanOk = document.getElementById("plan-ok");
 const btnPlanLater = document.getElementById("plan-later");
 const btnPlanRest = document.getElementById("plan-rest");
 
+const rankList = document.getElementById("rank-list");
+const rankEmpty = document.getElementById("rank-empty");
+const partList = document.getElementById("part-list");
+const partEmpty = document.getElementById("part-empty");
+const pbModal = document.getElementById("pb-modal");
+const pbLabel = document.getElementById("pb-label");
+const pbTitle = document.getElementById("pb-title");
+const pbAnimal = document.getElementById("pb-animal");
+const pbAnimalText = document.getElementById("pb-animal-text");
+const pbDetail = document.getElementById("pb-detail");
+const btnPbOk = document.getElementById("pb-ok");
+
+// 種目別で開いている部位と、グラフを開いている種目
+const openParts = new Set();
+let openExerciseKey = null;
+
 // 曜日の名前（0=日 〜 6=土）
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -292,6 +308,10 @@ function handleSubmit(event) {
   if (!data) return;
 
   const records = load(KEY_RECORDS, []);
+  const isNew = !editingId;
+
+  // 登録する前の、この種目の自己ベスト（お祝いメッセージの判定に使う）
+  const before = isNew ? getBests(records)[bestKey(data)] : null;
 
   if (editingId) {
     // 編集中なら、その記録を書き換える
@@ -310,6 +330,9 @@ function handleSubmit(event) {
   clearNumbers();
   endEdit();
   renderAll();
+
+  // 新しく登録したときだけ、自己ベストを更新していたらお祝いする（編集では出さない）
+  if (isNew) celebrateIfBest(data, before);
 }
 
 // 重量・回数・セット・メモを空にする
@@ -386,6 +409,8 @@ function renderAll() {
   renderHistory();
   renderCalendar();
   renderHome();
+  renderRanking();
+  renderPartList();
 }
 
 // =============================================
@@ -880,6 +905,350 @@ function renderHome() {
 }
 
 // =============================================
+// 自己ベスト（推定MAX）の計算
+// =============================================
+
+// 推定MAX（1回だけ挙げられる重さの推定値）を計算する
+// Brzycki式：重量 × 36 ÷ (37 − 回数)。日本でよく使われるRM表とほぼ同じ値になる
+// ・回数が多いほど推定がずれるので、13回以上は12回として計算する（少なめに見積もる）
+// ・重量0（自重）は対象外なので null を返す
+function estimateMax(record) {
+  if (!(record.weight > 0)) return null;
+  const reps = Math.min(record.reps, 12);
+  const value = (record.weight * 36) / (37 - reps);
+  return Math.round(value * 10) / 10; // 小数第1位まで
+}
+
+// 種目を区別する目印（同じ名前でも部位が違えば別の種目）
+function bestKey(record) {
+  return `${record.part}|${record.exercise}`;
+}
+
+// 全記録から、種目ごとの自己ベストをまとめる
+// 戻り値：{ "胸|ベンチプレス": { part, exercise, best, bestDate, first, points: [{date, value, isBest}] } }
+function getBests(records) {
+  // 日付の古い順に並べる（同じ日なら登録した順）
+  const sorted = records
+    .map((record, index) => ({ record, index }))
+    .sort((a, b) => (a.record.date === b.record.date ? a.index - b.index : a.record.date < b.record.date ? -1 : 1))
+    .map((item) => item.record);
+
+  const bests = {};
+  sorted.forEach((record) => {
+    const value = estimateMax(record);
+    if (value === null) return;
+
+    const key = bestKey(record);
+    if (!bests[key]) {
+      bests[key] = { part: record.part, exercise: record.exercise, best: 0, bestDate: "", first: value, points: [] };
+    }
+    const item = bests[key];
+
+    // グラフ用：1日に何回あっても、その日の最大値を1点にする
+    const last = item.points[item.points.length - 1];
+    if (last && last.date === record.date) {
+      last.value = Math.max(last.value, value);
+    } else {
+      item.points.push({ date: record.date, value: value, isBest: false });
+    }
+
+    // 自己ベストの更新（同じ値なら、最初に出した日のまま）
+    if (value > item.best) {
+      item.best = value;
+      item.bestDate = record.date;
+    }
+  });
+
+  // グラフで「自己ベストを更新した日」に印を付ける
+  Object.values(bests).forEach((item) => {
+    let max = 0;
+    item.points.forEach((point) => {
+      point.isBest = point.value > max;
+      if (point.isBest) max = point.value;
+    });
+  });
+
+  return bests;
+}
+
+// 重さにいちばん近い動物を選ぶ（重さの比が1に最も近いもの）
+function pickAnimal(kg) {
+  return ANIMALS.reduce((best, animal) =>
+    Math.abs(Math.log(kg / animal.kg)) < Math.abs(Math.log(kg / best.kg)) ? animal : best
+  );
+}
+
+// 「ライオン 1.0頭分」の形にする
+function animalText(kg) {
+  const animal = pickAnimal(kg);
+  return `${animal.name} ${(kg / animal.kg).toFixed(1)}${animal.unit}分`;
+}
+
+// 動物のシルエット（SVGの文字列）を作る
+function animalSvg(kg) {
+  const animal = pickAnimal(kg);
+  return (
+    `<svg class="animal" viewBox="0 0 100 70" role="img" aria-label="${animal.name}">` +
+    `<path fill-rule="evenodd" d="${animal.d}"/></svg>`
+  );
+}
+
+// "YYYY-MM-DD" を「10/24」の形にする
+function shortDate(dateStr) {
+  const [, m, d] = dateStr.split("-").map(Number);
+  return `${m}/${d}`;
+}
+
+// 種目ごとの自己ベストを、重い順に並べた配列で返す
+function getSortedBests() {
+  return Object.values(getBests(load(KEY_RECORDS, []))).sort((a, b) => b.best - a.best);
+}
+
+// =============================================
+// ホーム：ランキング
+// =============================================
+
+function renderRanking() {
+  const items = getSortedBests();
+  rankList.innerHTML = "";
+  rankEmpty.hidden = items.length > 0;
+
+  items.forEach((item, index) => {
+    const li = document.createElement("li");
+    li.className = "rank-item";
+
+    // 順位（1〜3位は金・銀・銅の丸）
+    const num = document.createElement("span");
+    num.className = "rank-num";
+    if (index < 3) num.classList.add(`is-${index + 1}`);
+    num.textContent = index + 1;
+
+    // 種目名・推定MAX・動物・更新日・初回からの伸び
+    const main = document.createElement("div");
+    main.className = "rank-main";
+    const name = document.createElement("div");
+    name.className = "rank-name";
+    name.textContent = `${item.exercise}（${item.part}）`;
+    const value = document.createElement("div");
+    value.className = "rank-value";
+    value.textContent = `${item.best}kg`;
+    const sub = document.createElement("div");
+    sub.className = "rank-sub";
+    sub.textContent = `${animalText(item.best)} ・ ${shortDate(item.bestDate)}更新`;
+    const growth = Math.round((item.best - item.first) * 10) / 10;
+    if (growth > 0) {
+      const g = document.createElement("span");
+      g.className = "rank-growth";
+      g.textContent = ` ・ 初回から +${growth}kg`;
+      sub.appendChild(g);
+    }
+    main.append(name, value, sub);
+
+    li.append(num);
+    li.insertAdjacentHTML("beforeend", animalSvg(item.best));
+    li.append(main);
+    rankList.appendChild(li);
+  });
+}
+
+// =============================================
+// ホーム：種目別（部位ごとにたたむ一覧＋グラフ）
+// =============================================
+
+function renderPartList() {
+  const items = getSortedBests();
+  partList.innerHTML = "";
+  partEmpty.hidden = items.length > 0;
+
+  // 部位の順番（胸・背中・脚…）で、記録のある部位だけ表示する
+  PARTS.forEach((part) => {
+    const partItems = items.filter((item) => item.part === part);
+    if (partItems.length === 0) return;
+
+    const group = document.createElement("section");
+    group.className = "part-group";
+    const isOpen = openParts.has(part);
+    group.classList.toggle("is-open", isOpen);
+
+    // 部位の見出し（押すと開く／たたむ）
+    const head = document.createElement("button");
+    head.type = "button";
+    head.className = "part-head";
+    head.setAttribute("aria-expanded", isOpen);
+    head.innerHTML = `<span></span><span class="part-count"></span><span class="part-arrow">›</span>`;
+    head.children[0].textContent = part;
+    head.children[1].textContent = `${partItems.length}種目`;
+    head.addEventListener("click", () => {
+      if (openParts.has(part)) openParts.delete(part);
+      else openParts.add(part);
+      renderPartList();
+    });
+
+    // 部位の中の種目
+    const body = document.createElement("div");
+    body.className = "part-body";
+    body.hidden = !isOpen;
+    partItems.forEach((item) => body.append(...createExerciseRow(item)));
+
+    group.append(head, body);
+    partList.appendChild(group);
+  });
+}
+
+// 種目の行と、その下のグラフを作る
+function createExerciseRow(item) {
+  const key = bestKey(item);
+  const isOpen = openExerciseKey === key;
+
+  const row = document.createElement("button");
+  row.type = "button";
+  row.className = "ex-row";
+  row.setAttribute("aria-expanded", isOpen);
+  row.insertAdjacentHTML("beforeend", animalSvg(item.best));
+
+  const main = document.createElement("div");
+  main.className = "ex-main";
+  const name = document.createElement("div");
+  name.className = "ex-name";
+  name.textContent = item.exercise;
+  const sub = document.createElement("div");
+  sub.className = "ex-sub";
+  sub.textContent = `${animalText(item.best)} ・ ${shortDate(item.bestDate)}更新`;
+  main.append(name, sub);
+
+  const value = document.createElement("div");
+  value.className = "ex-value";
+  value.textContent = `${item.best}kg`;
+  row.append(main, value);
+
+  // 押すとグラフを開く（開けるのは1つだけ。もう一度押すと閉じる）
+  row.addEventListener("click", () => {
+    openExerciseKey = isOpen ? null : key;
+    renderPartList();
+  });
+
+  const chart = document.createElement("div");
+  chart.className = "ex-chart";
+  chart.hidden = !isOpen;
+  if (isOpen) {
+    if (item.points.length < 2) {
+      chart.innerHTML = '<p class="chart-empty">記録が2日分以上になると、グラフを表示します</p>';
+    } else {
+      chart.innerHTML = '<p class="chart-title">推定MAXの推移（●：自己ベスト更新）</p>' + createChart(item.points);
+    }
+  }
+
+  return [row, chart];
+}
+
+// 推定MAXの推移グラフ（SVGの文字列）を作る。横軸：日付／縦軸：推定MAX(kg)
+function createChart(points) {
+  const W = 320, H = 170;                               // グラフ全体の大きさ
+  const left = 40, right = 12, top = 18, bottom = 24;   // まわりの余白（目盛りの文字用）
+
+  // 横軸：実際の日付の間隔に合わせる（間が空いた期間は、グラフでも空く）
+  const toDay = (dateStr) => {
+    const [y, m, d] = dateStr.split("-").map(Number);
+    return Date.UTC(y, m - 1, d) / 86400000;
+  };
+  const firstDay = toDay(points[0].date);
+  const lastDay = toDay(points[points.length - 1].date);
+  const x = (dateStr) => left + ((toDay(dateStr) - firstDay) / (lastDay - firstDay)) * (W - left - right);
+
+  // 縦軸：最小値〜最大値に少し余裕を持たせる
+  const values = points.map((p) => p.value);
+  let min = Math.min(...values), max = Math.max(...values);
+  const pad = Math.max((max - min) * 0.15, 2);
+  min = Math.max(0, min - pad);
+  max = max + pad;
+  const y = (value) => top + (1 - (value - min) / (max - min)) * (H - top - bottom);
+
+  // 折れ線と点
+  const line = points.map((p) => `${x(p.date).toFixed(1)},${y(p.value).toFixed(1)}`).join(" ");
+  const dots = points
+    .map((p) => `<circle class="chart-dot${p.isBest ? " is-best" : ""}" cx="${x(p.date).toFixed(1)}" cy="${y(p.value).toFixed(1)}" r="4"/>`)
+    .join("");
+
+  // いちばん高い点に値を書く
+  // （グラフの端で文字が切れないよう、端に近いときは内側に寄せる）
+  const top1 = points.reduce((a, b) => (b.value > a.value ? b : a));
+  const topX = x(top1.date);
+  const anchor = topX > W - 40 ? "end" : topX < left + 30 ? "start" : "middle";
+  const bestLabel = `<text class="chart-label is-strong" x="${topX.toFixed(1)}" y="${(y(top1.value) - 8).toFixed(1)}" text-anchor="${anchor}">${top1.value}kg</text>`;
+
+  // 目盛り：縦は下・上の値、横は最初と最後の日付
+  const labels =
+    `<text class="chart-label" x="${left - 6}" y="${y(min) + 4}" text-anchor="end">${Math.round(min)}</text>` +
+    `<text class="chart-label" x="${left - 6}" y="${y(max) + 4}" text-anchor="end">${Math.round(max)}</text>` +
+    `<text class="chart-label" x="${left}" y="${H - 6}" text-anchor="start">${shortDate(points[0].date)}</text>` +
+    `<text class="chart-label" x="${W - right}" y="${H - 6}" text-anchor="end">${shortDate(points[points.length - 1].date)}</text>`;
+
+  const axis =
+    `<line class="chart-axis" x1="${left}" y1="${top}" x2="${left}" y2="${H - bottom}"/>` +
+    `<line class="chart-axis" x1="${left}" y1="${H - bottom}" x2="${W - right}" y2="${H - bottom}"/>`;
+
+  return (
+    `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="推定MAXの推移">` +
+    axis + labels + `<polyline class="chart-line" points="${line}"/>` + dots + bestLabel +
+    "</svg>"
+  );
+}
+
+// =============================================
+// 自己ベストのお祝いメッセージ
+// =============================================
+
+// 登録した記録が自己ベストなら、お祝いメッセージを出す
+// before：登録する前の、この種目の自己ベスト（初めての種目なら undefined）
+function celebrateIfBest(record, before) {
+  const value = estimateMax(record);
+  if (value === null) return; // 自重の種目は対象外
+
+  if (!before) {
+    // その種目の初めての記録：控えめに知らせる
+    pbLabel.textContent = "初記録";
+    pbTitle.textContent = record.exercise;
+    pbDetail.textContent = `推定MAX ${value}kg（ここから記録していきましょう）`;
+  } else if (value > before.best) {
+    // 自己ベスト更新
+    const diff = Math.round((value - before.best) * 10) / 10;
+    pbLabel.textContent = "自己ベスト更新！";
+    pbTitle.textContent = record.exercise;
+    pbDetail.textContent = `推定MAX ${before.best}kg → ${value}kg（+${diff}kg）`;
+  } else {
+    return; // 更新していなければ何も出さない
+  }
+
+  pbAnimal.innerHTML = animalSvg(value);
+  pbAnimalText.textContent = animalText(value);
+  pbModal.hidden = false;
+  document.body.classList.add("modal-open");
+}
+
+function closePbModal() {
+  pbModal.hidden = true;
+  document.body.classList.remove("modal-open");
+}
+
+// =============================================
+// ホームの中のタブ（今週／ランキング／種目別）
+// =============================================
+
+function setupHomeTabs() {
+  document.querySelectorAll(".segment-btn").forEach((button) => {
+    button.addEventListener("click", () => {
+      const panel = button.dataset.panel;
+      document.querySelectorAll(".segment-btn").forEach((b) => {
+        b.classList.toggle("is-active", b === button);
+      });
+      document.querySelectorAll(".home-panel").forEach((p) => {
+        p.hidden = p.id !== `panel-${panel}`;
+      });
+    });
+  });
+}
+
+// =============================================
 // 画面下部のタブ切り替え
 // =============================================
 
@@ -930,6 +1299,8 @@ function init() {
   btnPlanOk.addEventListener("click", submitPlan);
   btnPlanLater.addEventListener("click", closePlanModal);
   btnPlanRest.addEventListener("click", restThisWeek);
+  btnPbOk.addEventListener("click", closePbModal);
+  setupHomeTabs();
 
   // アプリに戻ってきたとき（ホーム画面のアプリは裏で残っていることがあるため）も確認する
   document.addEventListener("visibilitychange", () => {

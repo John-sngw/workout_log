@@ -538,6 +538,294 @@ select:focus {
   background: var(--accent);
 }
 
+/* ===== ホームの中のタブ（今週／ランキング／種目別） ===== */
+.segment {
+  display: flex;
+  background: var(--card);
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 14px;
+}
+
+.segment-btn {
+  flex: 1;
+  height: 40px;
+  border: none;
+  border-radius: 9px;
+  background: none;
+  color: var(--sub-text);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.segment-btn.is-active {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.home-panel[hidden] {
+  display: none;
+}
+
+/* 動物のシルエット（色は文字と同じ） */
+.animal {
+  color: var(--text);
+  fill: currentColor;
+}
+
+/* ===== ランキング ===== */
+.rank-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 14px;
+  background: var(--card);
+  border-radius: 16px;
+}
+
+.rank-list:empty {
+  display: none;
+}
+
+.rank-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+
+.rank-item:first-child {
+  border-top: none;
+}
+
+/* 順位の丸（1〜3位は金・銀・銅） */
+.rank-num {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  line-height: 28px;
+  border-radius: 50%;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+  background: var(--bg);
+  color: var(--sub-text);
+}
+
+.rank-num.is-1 { background: #f5c518; color: #1c1c1e; }
+.rank-num.is-2 { background: #c0c0c8; color: #1c1c1e; }
+.rank-num.is-3 { background: #cd7f32; color: #ffffff; }
+
+.rank-item .animal {
+  flex-shrink: 0;
+  width: 54px;
+  height: 38px;
+}
+
+.rank-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.rank-name {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.rank-value {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.rank-sub {
+  font-size: 12px;
+  color: var(--sub-text);
+}
+
+/* 初回からの伸び */
+.rank-growth {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.pb-note {
+  font-size: 12px;
+  color: var(--sub-text);
+  margin: 12px 4px 0;
+}
+
+/* ===== 種目別（部位ごとにたたむ一覧） ===== */
+.part-group {
+  background: var(--card);
+  border-radius: 16px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+
+/* 部位の見出し（押すと開く／たたむ） */
+.part-head {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 16px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.part-count {
+  margin-left: 8px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--sub-text);
+}
+
+/* 右端の矢印（開いているときは下向き） */
+.part-arrow {
+  margin-left: auto;
+  color: var(--sub-text);
+  transition: transform 0.2s;
+}
+
+.part-group.is-open .part-arrow {
+  transform: rotate(90deg);
+}
+
+.part-body[hidden] {
+  display: none;
+}
+
+/* 種目の行（押すとグラフを開く） */
+.ex-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  border-top: 1px solid var(--border);
+  background: none;
+  color: var(--text);
+  text-align: left;
+}
+
+.ex-row .animal {
+  flex-shrink: 0;
+  width: 48px;
+  height: 34px;
+}
+
+.ex-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.ex-name {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.ex-sub {
+  font-size: 12px;
+  color: var(--sub-text);
+}
+
+.ex-value {
+  font-size: 18px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* グラフの枠 */
+.ex-chart {
+  padding: 4px 12px 12px;
+}
+
+.ex-chart[hidden] {
+  display: none;
+}
+
+.chart-title {
+  font-size: 12px;
+  color: var(--sub-text);
+  margin: 0 0 4px;
+}
+
+.chart {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.chart-axis {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.chart-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.chart-dot {
+  fill: var(--card);
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+/* 自己ベストを更新した点は塗りつぶす */
+.chart-dot.is-best {
+  fill: var(--accent);
+}
+
+.chart-label {
+  font-size: 11px;
+  fill: var(--sub-text);
+}
+
+.chart-label.is-strong {
+  fill: var(--text);
+  font-weight: 700;
+}
+
+.chart-empty {
+  font-size: 13px;
+  color: var(--sub-text);
+  margin: 4px 0 0;
+}
+
+/* ===== 自己ベストのお祝いメッセージ ===== */
+.pb-label {
+  margin: 0 0 2px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.pb-animal .animal {
+  width: 150px;
+  height: 105px;
+  margin: 10px 0 0;
+}
+
+.pb-animal-text {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.pb-detail {
+  margin: 6px 0 16px;
+  font-size: 14px;
+  color: var(--sub-text);
+}
+
 /* ===== 今週の予定を登録するメッセージ ===== */
 .modal {
   position: fixed;
