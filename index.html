@@ -24,22 +24,45 @@
   <section id="screen-home" class="screen" hidden>
     <header class="screen-header"><h1>ホーム</h1></header>
 
-    <div class="card home-week">
-      <p id="home-range" class="home-range"></p>
-      <!-- 「今週 2/3回」 -->
-      <p class="home-count">
-        今週 <strong id="home-done">0</strong><span class="home-slash">/</span><span id="home-target">-</span>回
-      </p>
-      <p id="home-message" class="home-message"></p>
-      <!-- 日〜土の7つの丸（予定日は枠線、実施日は塗りつぶし） -->
-      <div id="home-days" class="home-days"></div>
-      <p class="home-legend">
-        <span><i class="legend-mark is-plan"></i>予定</span>
-        <span><i class="legend-mark is-done"></i>実施</span>
-      </p>
+    <!-- ホームの中のタブ（今週／ランキング／種目別） -->
+    <div class="segment" role="tablist">
+      <button type="button" class="segment-btn is-active" data-panel="week">今週</button>
+      <button type="button" class="segment-btn" data-panel="rank">ランキング</button>
+      <button type="button" class="segment-btn" data-panel="part">種目別</button>
     </div>
 
-    <button type="button" id="btn-edit-plan" class="btn btn-sub btn-block">今週の予定を変更</button>
+    <!-- 今週：目標と実績 -->
+    <div id="panel-week" class="home-panel">
+      <div class="card home-week">
+        <p id="home-range" class="home-range"></p>
+        <!-- 「今週 2/3回」 -->
+        <p class="home-count">
+          今週 <strong id="home-done">0</strong><span class="home-slash">/</span><span id="home-target">-</span>回
+        </p>
+        <p id="home-message" class="home-message"></p>
+        <!-- 日〜土の7つの丸（予定日は枠線、実施日は塗りつぶし） -->
+        <div id="home-days" class="home-days"></div>
+        <p class="home-legend">
+          <span><i class="legend-mark is-plan"></i>予定</span>
+          <span><i class="legend-mark is-done"></i>実施</span>
+        </p>
+      </div>
+
+      <button type="button" id="btn-edit-plan" class="btn btn-sub btn-block">今週の予定を変更</button>
+    </div>
+
+    <!-- ランキング：種目ごとの自己ベスト（推定MAX）を重い順に -->
+    <div id="panel-rank" class="home-panel" hidden>
+      <ol id="rank-list" class="rank-list"></ol>
+      <p id="rank-empty" class="list-empty">まだ記録がありません<br>重量のある種目を登録すると表示されます</p>
+      <p class="pb-note">推定MAX：1回だけ挙げられる重さの推定値（重量×36÷(37−回数)）。自重の種目は対象外</p>
+    </div>
+
+    <!-- 種目別：部位ごとにたたんだ一覧。種目を押すとグラフを表示 -->
+    <div id="panel-part" class="home-panel" hidden>
+      <div id="part-list"></div>
+      <p id="part-empty" class="list-empty">まだ記録がありません<br>重量のある種目を登録すると表示されます</p>
+    </div>
   </section>
 
   <!-- ===== カレンダー画面（上：月のカレンダー／下：履歴の一覧） ===== -->
@@ -150,6 +173,18 @@
     </div>
   </div>
 
+  <!-- ===== 自己ベストを更新したときのお祝いメッセージ ===== -->
+  <div id="pb-modal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="pb-title">
+    <div class="modal-box pb-box">
+      <p id="pb-label" class="pb-label"></p>
+      <h2 id="pb-title" class="modal-title"></h2>
+      <div id="pb-animal" class="pb-animal"></div>
+      <p id="pb-animal-text" class="pb-animal-text"></p>
+      <p id="pb-detail" class="pb-detail"></p>
+      <button type="button" id="pb-ok" class="btn btn-main">OK</button>
+    </div>
+  </div>
+
   <nav class="tab-bar">
     <button type="button" class="tab" data-screen="home">
       <span class="tab-icon">🏠</span><span>ホーム</span>
@@ -162,6 +197,7 @@
     </button>
   </nav>
 
+  <script src="animals.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
