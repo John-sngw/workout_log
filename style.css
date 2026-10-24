@@ -269,6 +269,30 @@ select:focus {
   margin: 16px 0;
 }
 
+/* ===== 履歴の一覧（カレンダータブ） ===== */
+.history-day {
+  margin-bottom: 20px;
+}
+
+/* 日付の見出し（日付とその日の部位を横に並べる） */
+.history-day-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+
+.history-date {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.history-parts {
+  font-size: 14px;
+  color: var(--sub-text);
+}
+
 /* ===== 画面下部のタブ ===== */
 .tab-bar {
   position: fixed;

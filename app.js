@@ -35,6 +35,8 @@ const btnCancelEdit = document.getElementById("btn-cancel-edit");
 const listTitle = document.getElementById("list-title");
 const recordList = document.getElementById("record-list");
 const listEmpty = document.getElementById("list-empty");
+const historyList = document.getElementById("history-list");
+const historyEmpty = document.getElementById("history-empty");
 
 // 編集中の記録のid（編集していないときは null）
 let editingId = null;
@@ -239,7 +241,7 @@ function handleSubmit(event) {
   // （日付・部位・種目はそのまま残すので、続けて登録しやすい）
   clearNumbers();
   endEdit();
-  renderList();
+  renderAll();
 }
 
 // 重量・回数・セット・メモを空にする
@@ -271,7 +273,7 @@ function startEdit(id) {
   btnSubmit.textContent = "更新する";
   btnCancelEdit.hidden = false;
   showError("");
-  renderList();
+  renderAll();
 
   // フォームが見えるように上へスクロール
   form.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -289,7 +291,7 @@ function cancelEdit() {
   clearNumbers();
   endEdit();
   showError("");
-  renderList();
+  renderAll();
 }
 
 // 記録を削除する
@@ -307,11 +309,73 @@ function deleteRecord(id) {
     clearNumbers();
     endEdit();
   }
+  renderAll();
+}
+
+// 入力画面と履歴の、両方の一覧を作り直す
+function renderAll() {
   renderList();
+  renderHistory();
 }
 
 // =============================================
-// その日の記録一覧
+// 記録1件分の表示（入力画面と履歴で共通）
+// =============================================
+
+// 記録1件分の部品（li）を作る
+// onEdit：「編集」を押したときに実行する処理
+function createRecordItem(record, onEdit) {
+  const li = document.createElement("li");
+  li.className = "record-item";
+  if (record.id === editingId) li.classList.add("is-editing");
+
+  // 1行目：部位と種目
+  const head = document.createElement("div");
+  head.className = "record-head";
+  const part = document.createElement("span");
+  part.className = "record-part";
+  part.textContent = record.part;
+  const exercise = document.createElement("span");
+  exercise.className = "record-exercise";
+  exercise.textContent = record.exercise;
+  head.append(part, exercise);
+
+  // 2行目：重量 × 回数 × セット
+  const detail = document.createElement("div");
+  detail.className = "record-detail";
+  const weightText = record.weight === 0 ? "自重" : `${record.weight}kg`;
+  detail.textContent = `${weightText} × ${record.reps}回 × ${record.sets}セット`;
+
+  li.append(head, detail);
+
+  // 3行目：メモ（あるときだけ）
+  if (record.memo) {
+    const memo = document.createElement("div");
+    memo.className = "record-memo";
+    memo.textContent = record.memo;
+    li.appendChild(memo);
+  }
+
+  // 編集・削除ボタン
+  const actions = document.createElement("div");
+  actions.className = "record-actions";
+  const btnEdit = document.createElement("button");
+  btnEdit.type = "button";
+  btnEdit.textContent = "編集";
+  btnEdit.addEventListener("click", onEdit);
+  const btnDelete = document.createElement("button");
+  btnDelete.type = "button";
+  btnDelete.className = "btn-delete";
+  btnDelete.textContent = "削除";
+  btnDelete.addEventListener("click", () => deleteRecord(record.id));
+  actions.append(btnEdit, btnDelete);
+  li.appendChild(actions);
+
+  return li;
+}
+
+// =============================================
+// その日の記録一覧（入力画面の下）
 // =============================================
 
 // 選んでいる日付の記録を一覧表示する
@@ -324,73 +388,87 @@ function renderList() {
   listEmpty.hidden = records.length > 0;
 
   records.forEach((record) => {
-    const li = document.createElement("li");
-    li.className = "record-item";
-    if (record.id === editingId) li.classList.add("is-editing");
-
-    // 1行目：部位と種目
-    const head = document.createElement("div");
-    head.className = "record-head";
-    const part = document.createElement("span");
-    part.className = "record-part";
-    part.textContent = record.part;
-    const exercise = document.createElement("span");
-    exercise.className = "record-exercise";
-    exercise.textContent = record.exercise;
-    head.append(part, exercise);
-
-    // 2行目：重量 × 回数 × セット
-    const detail = document.createElement("div");
-    detail.className = "record-detail";
-    const weightText = record.weight === 0 ? "自重" : `${record.weight}kg`;
-    detail.textContent = `${weightText} × ${record.reps}回 × ${record.sets}セット`;
-
-    li.append(head, detail);
-
-    // 3行目：メモ（あるときだけ）
-    if (record.memo) {
-      const memo = document.createElement("div");
-      memo.className = "record-memo";
-      memo.textContent = record.memo;
-      li.appendChild(memo);
-    }
-
-    // 編集・削除ボタン
-    const actions = document.createElement("div");
-    actions.className = "record-actions";
-    const btnEdit = document.createElement("button");
-    btnEdit.type = "button";
-    btnEdit.textContent = "編集";
-    btnEdit.addEventListener("click", () => startEdit(record.id));
-    const btnDelete = document.createElement("button");
-    btnDelete.type = "button";
-    btnDelete.className = "btn-delete";
-    btnDelete.textContent = "削除";
-    btnDelete.addEventListener("click", () => deleteRecord(record.id));
-    actions.append(btnEdit, btnDelete);
-    li.appendChild(actions);
-
-    recordList.appendChild(li);
+    recordList.appendChild(createRecordItem(record, () => startEdit(record.id)));
   });
+}
+
+// =============================================
+// 履歴の一覧（カレンダータブ）
+// =============================================
+
+// すべての記録を、日付ごとに新しい順で表示する
+function renderHistory() {
+  const records = load(KEY_RECORDS, []);
+
+  // 日付ごとにまとめる（例：{ "2026-10-24": [記録, 記録], ... }）
+  const byDate = {};
+  records.forEach((record) => {
+    if (!byDate[record.date]) byDate[record.date] = [];
+    byDate[record.date].push(record);
+  });
+
+  // 日付を新しい順に並べる（"YYYY-MM-DD" は文字の順番がそのまま日付の順番になる）
+  const dates = Object.keys(byDate).sort().reverse();
+
+  historyList.innerHTML = "";
+  historyEmpty.hidden = dates.length > 0;
+
+  dates.forEach((date) => {
+    const dayRecords = byDate[date];
+    const day = document.createElement("section");
+    day.className = "history-day";
+
+    // 見出し：日付と、その日に鍛えた部位（重複なし）
+    const head = document.createElement("h2");
+    head.className = "history-day-head";
+    const dateLabel = document.createElement("span");
+    dateLabel.className = "history-date";
+    dateLabel.textContent = formatDate(date);
+    const parts = document.createElement("span");
+    parts.className = "history-parts";
+    // 部位を、選択肢と同じ順番（胸・背中・脚…）で並べる
+    const partNames = PARTS.filter((p) => dayRecords.some((r) => r.part === p));
+    parts.textContent = partNames.join("・");
+    head.append(dateLabel, parts);
+
+    // その日の記録
+    const list = document.createElement("ul");
+    list.className = "record-list";
+    dayRecords.forEach((record) => {
+      list.appendChild(createRecordItem(record, () => editFromHistory(record.id)));
+    });
+
+    day.append(head, list);
+    historyList.appendChild(day);
+  });
+}
+
+// 履歴から「編集」を押したとき：入力画面に移動して編集を始める
+function editFromHistory(id) {
+  showScreen("input");
+  startEdit(id);
 }
 
 // =============================================
 // 画面下部のタブ切り替え
 // =============================================
 
+// 指定した画面（"home" / "calendar" / "input"）に切り替える
+function showScreen(name) {
+  // 対応するタブだけ色を付ける
+  document.querySelectorAll(".tab").forEach((tab) => {
+    tab.classList.toggle("is-active", tab.dataset.screen === name);
+  });
+  // 対応する画面だけ表示する
+  document.querySelectorAll(".screen").forEach((screen) => {
+    screen.hidden = screen.id !== `screen-${name}`;
+  });
+  window.scrollTo(0, 0);
+}
+
 function setupTabs() {
-  const tabs = document.querySelectorAll(".tab");
-  tabs.forEach((tab) => {
-    tab.addEventListener("click", () => {
-      const target = tab.dataset.screen;
-      // 押したタブだけ色を付ける
-      tabs.forEach((t) => t.classList.toggle("is-active", t === tab));
-      // 対応する画面だけ表示する
-      document.querySelectorAll(".screen").forEach((screen) => {
-        screen.hidden = screen.id !== `screen-${target}`;
-      });
-      window.scrollTo(0, 0);
-    });
+  document.querySelectorAll(".tab").forEach((tab) => {
+    tab.addEventListener("click", () => showScreen(tab.dataset.screen));
   });
 }
 
@@ -407,7 +485,7 @@ function init() {
   inputDate.value = todayString(); // 日付の初期値は今日
   renderParts();
   renderExercises();
-  renderList();
+  renderAll();
   setupTabs();
 
   // 各操作に処理をつなぐ
