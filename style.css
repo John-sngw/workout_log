@@ -9,6 +9,12 @@
   --accent-text: #ffffff; /* メイン色の上の文字 */
   --danger: #ff3b30;      /* 削除など */
   --tab-height: 64px;     /* 下のタブの高さ */
+
+  /* カレンダーの人型シンボルの色 */
+  --figure: #c7c7cc;      /* 体 */
+  --figure-hit: #e5484d;  /* 鍛えた部位（背中以外） */
+  --figure-back: #ff9f0a; /* 背中 */
+  --figure-line: #1c1c1e; /* 鍛えた部位（背中以外）の枠線 */
 }
 
 /* ===== 色の設定（ダークモード：端末の設定に従う） ===== */
@@ -22,6 +28,10 @@
     --accent: #ff8a3d;
     --accent-text: #000000;
     --danger: #ff453a;
+    --figure: #5a5a5f;
+    --figure-hit: #ff5c5c;
+    --figure-back: #ff9f0a;
+    --figure-line: #000000;
   }
 }
 
@@ -299,9 +309,105 @@ select:focus {
   margin: 16px 0;
 }
 
+/* ===== 月のカレンダー ===== */
+.calendar {
+  padding: 12px 8px;
+}
+
+/* 「‹ 2026年10月 ›」の行 */
+.cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.cal-title {
+  font-size: 18px;
+  margin: 0;
+}
+
+.cal-nav {
+  width: 48px;
+  height: 44px;
+  font-size: 28px;
+  line-height: 1;
+  color: var(--accent);
+  background: none;
+  border: none;
+}
+
+/* 曜日の行と日付のマスは、どちらも7列に並べる */
+.cal-week,
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+}
+
+.cal-week {
+  font-size: 12px;
+  color: var(--sub-text);
+  margin-bottom: 4px;
+}
+
+/* 日曜は赤、土曜は青 */
+.sun {
+  color: var(--danger);
+}
+
+.sat {
+  color: #0a84ff;
+}
+
+/* 日付の1マス */
+.cal-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 66px;
+  padding: 4px 0 2px;
+  background: none;
+  border: none;
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.cal-day:active {
+  background: var(--bg);
+}
+
+/* 月の前後の空きマス */
+.cal-day.is-blank {
+  visibility: hidden;
+}
+
+/* 日付の数字（今日は丸で囲む） */
+.cal-num {
+  width: 26px;
+  height: 26px;
+  line-height: 26px;
+  border-radius: 50%;
+}
+
+.cal-day.is-today .cal-num {
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 700;
+}
+
+/* 人型シンボル */
+.figure {
+  width: 24px;
+  height: 35px;
+  margin-top: 1px;
+}
+
 /* ===== 履歴の一覧（カレンダータブ） ===== */
 .history-day {
   margin-bottom: 20px;
+  scroll-margin-top: calc(env(safe-area-inset-top) + 12px); /* カレンダーから移動したときの上の余白 */
 }
 
 /* 日付の見出し（日付とその日の部位を横に並べる） */

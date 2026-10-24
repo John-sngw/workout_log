@@ -26,10 +26,27 @@
     <p class="coming-soon">準備中</p>
   </section>
 
-  <!-- ===== カレンダー画面（今は履歴の一覧。フェーズ3で上にカレンダーを追加する） ===== -->
+  <!-- ===== カレンダー画面（上：月のカレンダー／下：履歴の一覧） ===== -->
   <section id="screen-calendar" class="screen" hidden>
-    <header class="screen-header"><h1>履歴</h1></header>
+    <header class="screen-header"><h1>カレンダー</h1></header>
+
+    <!-- 月のカレンダー -->
+    <div class="card calendar">
+      <div class="cal-head">
+        <button type="button" id="cal-prev" class="cal-nav" aria-label="前の月">‹</button>
+        <h2 id="cal-title" class="cal-title"></h2>
+        <button type="button" id="cal-next" class="cal-nav" aria-label="次の月">›</button>
+      </div>
+      <!-- 曜日（日曜はじまり） -->
+      <div class="cal-week">
+        <span class="sun">日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span class="sat">土</span>
+      </div>
+      <!-- 日付のマスがここに入る -->
+      <div id="cal-grid" class="cal-grid"></div>
+    </div>
+
     <!-- 日付ごとの記録がここに入る -->
+    <h2 class="list-title">履歴</h2>
     <div id="history-list"></div>
     <p id="history-empty" class="list-empty">まだ記録はありません</p>
   </section>
