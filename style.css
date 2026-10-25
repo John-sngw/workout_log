@@ -137,10 +137,49 @@ select:focus {
 }
 
 /* 重量・回数・セットを横に3つ並べる */
+/* 重量・回数（編集中はセット数も）を横に並べる */
 .field-row {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 8px;
+}
+
+.field-row.has-sets {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.field[hidden] {
+  display: none;
+}
+
+/* アップ／メインの切り替え */
+.type-toggle {
+  display: flex;
+  gap: 8px;
+}
+
+.type-btn {
+  flex: 1;
+  height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--sub-text);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.type-btn.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+/* アップを選んでいるときは、灰色にしてメインと見分ける */
+.type-btn.is-active[data-type="warmup"] {
+  background: var(--sub-text);
+  border-color: var(--sub-text);
+  color: var(--card);
 }
 
 /* 種目追加の欄（入力欄と追加ボタンを横に並べる） */
@@ -536,6 +575,120 @@ select:focus {
 
 .legend-mark.is-done {
   background: var(--accent);
+}
+
+/* 一覧の「アップ」の目印（アップの行は文字を薄くする） */
+.warmup-tag {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--card);
+  background: var(--sub-text);
+  border-radius: 6px;
+  padding: 0 6px;
+  margin-right: 6px;
+  vertical-align: 2px;
+}
+
+.set-row.is-warmup .record-detail {
+  color: var(--sub-text);
+}
+
+/* ===== 今週のメイン（集計） ===== */
+.stats {
+  margin-top: 24px;
+}
+
+.stats-title {
+  font-size: 17px;
+  margin: 0;
+}
+
+.stats-period {
+  font-size: 13px;
+  color: var(--sub-text);
+  margin: 0 0 10px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.stats-box {
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.stats-label {
+  font-size: 13px;
+  color: var(--sub-text);
+  margin: 0;
+}
+
+.stats-value {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 2px 0;
+}
+
+.stats-compare {
+  font-size: 12px;
+  color: var(--sub-text);
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* 増えたらオレンジ、減ったら赤 */
+.stats-up {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.stats-down {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.stats-part-title {
+  margin-top: 14px;
+}
+
+.stats-parts {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.stats-parts li {
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 6px 8px;
+  font-size: 14px;
+}
+
+.stats-parts b {
+  font-size: 18px;
+}
+
+.stats-parts small {
+  color: var(--sub-text);
+}
+
+/* 今週まだ0セットの部位は薄くする */
+.stats-parts li.is-zero {
+  color: var(--sub-text);
+}
+
+.stats-note {
+  font-size: 12px;
+  color: var(--sub-text);
+  margin: 10px 0 0;
 }
 
 /* ===== データのバックアップ ===== */
