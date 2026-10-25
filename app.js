@@ -609,18 +609,22 @@ const FIGURE_PARTS = {
   "胸": '<path d="M12 16.8Q16 15.3 19.4 16.3V24Q15.5 25.5 12 23Z M28 16.8Q24 15.3 20.6 16.3V24Q24.5 25.5 28 23Z"/>',
   "腹": '<path d="M15.2 26Q20 27.5 24.8 26V39.5H15.2Z"/>',
   "脚": '<path d="M12.2 42H19.2L19 50.5H12.7Q12 46 12.2 42Z M27.8 42H20.8L21 50.5H27.3Q28 46 27.8 42Z"/>',
-  "肩": '<path d="M5.6 16.3Q7 13.6 11 14.2L10.6 19.6Q7.5 19.2 5.6 16.3Z M34.4 16.3Q33 13.6 29 14.2L29.4 19.6Q32.5 19.2 34.4 16.3Z"/>',
+  // 肩は小さいと見えにくいので、最初の形の約1.7倍（2倍にしたあと0.85倍に調整）の大きさにしている
+  "肩": '<path d="M4.5 21.1Q4.1 14.9 9.3 13.8L12.3 14.8L11.4 22.2Q7.5 23.7 4.5 21.1Z M35.5 21.1Q35.9 14.9 30.7 13.8L27.7 14.8L28.6 22.2Q32.5 23.7 35.5 21.1Z"/>',
   "腕": '<path d="M5.3 17.5L9.6 19.5Q8 26 7.6 33H4.2Q4.1 24 5.3 17.5Z M34.7 17.5L30.4 19.5Q32 26 32.4 33H35.8Q35.9 24 34.7 17.5Z"/>',
 };
 
+// 背中以外の部位を描く順番（あとに描くほど手前に見える。肩はいちばん手前）
+const FIGURE_DRAW_ORDER = ["胸", "腹", "脚", "腕", "肩"];
+
 // 鍛えた部位に色を付けた人型シンボル（SVGの文字列）を作る
-// 背中（オレンジ・枠線なし）を先に描き、その上に他の部位（赤・枠線あり）を重ねる
+// 背中（オレンジ・枠線なし）を先に描き、その上に他の部位（赤・枠線あり）を決まった順番で重ねる
 function createFigure(parts) {
   const back = parts.includes("背中")
     ? `<g fill="var(--figure-back)">${FIGURE_PARTS["背中"]}</g>`
     : "";
-  const others = parts
-    .filter((p) => p !== "背中" && FIGURE_PARTS[p])
+  const others = FIGURE_DRAW_ORDER
+    .filter((p) => parts.includes(p))
     .map((p) => FIGURE_PARTS[p])
     .join("");
   return (
@@ -963,7 +967,7 @@ function getBests(records) {
 
     const key = bestKey(record);
     if (!bests[key]) {
-      bests[key] = { part: record.part, exercise: record.exercise, best: 0, bestDate: "", first: value, points: [] };
+      bests[key] = { part: record.part, exercise: record.exercise, best: 0, bestDate: "", first: 0, points: [] };
     }
     const item = bests[key];
 
@@ -982,8 +986,10 @@ function getBests(records) {
     }
   });
 
+  // 「初回から +○kg」の基準：最初に実施した日の最大値（アップのセットが基準にならないように）
   // グラフで「自己ベストを更新した日」に印を付ける
   Object.values(bests).forEach((item) => {
+    item.first = item.points[0].value;
     let max = 0;
     item.points.forEach((point) => {
       point.isBest = point.value > max;
