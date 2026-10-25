@@ -35,6 +35,9 @@ const btnCancelExercise = document.getElementById("btn-cancel-exercise");
 const inputWeight = document.getElementById("input-weight");
 const inputReps = document.getElementById("input-reps");
 const inputSets = document.getElementById("input-sets");
+const setsField = document.getElementById("sets-field");
+const numberRow = document.getElementById("number-row");
+const typeButtons = document.querySelectorAll(".type-btn");
 const inputMemo = document.getElementById("input-memo");
 const formError = document.getElementById("form-error");
 const btnSubmit = document.getElementById("btn-submit");
@@ -79,6 +82,12 @@ const btnExport = document.getElementById("btn-export");
 const btnImport = document.getElementById("btn-import");
 const inputImport = document.getElementById("input-import");
 const planBackupNote = document.getElementById("plan-backup-note");
+const statsPeriod = document.getElementById("stats-period");
+const statsSets = document.getElementById("stats-sets");
+const statsSetsCompare = document.getElementById("stats-sets-compare");
+const statsVolume = document.getElementById("stats-volume");
+const statsVolumeCompare = document.getElementById("stats-volume-compare");
+const statsParts = document.getElementById("stats-parts");
 
 // 種目別で開いている部位と、グラフを開いている種目
 const openParts = new Set();
@@ -94,8 +103,11 @@ let planSelected = [];
 let calYear = new Date().getFullYear();
 let calMonth = new Date().getMonth();
 
-// 編集中の記録のid（編集していないときは null）
-let editingId = null;
+// 編集中の記録のid（まとめて表示している行は複数。編集していないときは空）
+let editingIds = [];
+
+// 入力中の区分（"warmup"＝アップ／"main"＝メイン）。登録したあとも残す
+let inputType = "main";
 
 // 種目のプルダウンの最後に出す「新しい種目を入力」の値（種目名と重ならない特別な値）
 const NEW_EXERCISE = "__new__";
@@ -293,7 +305,9 @@ function readForm() {
     showError("回数を入力してください");
     return null;
   }
-  if (!/^\d+$/.test(setsText) || Number(setsText) < 1) {
+  // セット数は編集のときだけ入力する（新しい登録は、1回＝1セット）
+  const isEditing = editingIds.length > 0;
+  if (isEditing && (!/^\d+$/.test(setsText) || Number(setsText) < 1)) {
     showError("セット数を入力してください");
     return null;
   }
@@ -305,7 +319,8 @@ function readForm() {
     exercise: inputExercise.value,
     weight: weightText === "" ? 0 : Number(weightText), // 自重は 0 で保存
     reps: Number(repsText),
-    sets: Number(setsText),
+    sets: isEditing ? Number(setsText) : 1,
+    type: inputType,
     memo: inputMemo.value.trim(),
   };
 }
@@ -318,27 +333,31 @@ function handleSubmit(event) {
   if (!data) return;
 
   const records = load(KEY_RECORDS, []);
-  const isNew = !editingId;
+  const isNew = editingIds.length === 0;
 
   // 登録する前の、この種目の自己ベスト（お祝いメッセージの判定に使う）
   const before = isNew ? getBests(records)[bestKey(data)] : null;
 
-  if (editingId) {
-    // 編集中なら、その記録を書き換える
-    const index = records.findIndex((r) => r.id === editingId);
-    if (index !== -1) {
-      records[index] = { id: editingId, ...data };
-    }
-  } else {
-    // 新しい記録を追加する
+  if (isNew) {
+    // 新しい記録（1セット分）を追加する
     records.push({ id: createId(), ...data });
+    save(KEY_RECORDS, records);
+    // 重量・回数・区分はそのまま残し、メモだけ空にする
+    // （同じ重さで次のセットをするときは「登録する」を押すだけでよい）
+    inputMemo.value = "";
+  } else {
+    // 編集：行の最初の記録を書き換え、入力したセット数を持たせる
+    // 同じ行の残りの記録は削除する（表示は「×Nセット」のまま変わらない）
+    const [firstId, ...restIds] = editingIds;
+    const index = records.findIndex((r) => r.id === firstId);
+    if (index !== -1) {
+      records[index] = { id: firstId, ...data };
+    }
+    save(KEY_RECORDS, records.filter((r) => !restIds.includes(r.id)));
+    rememberDeleted(restIds);
+    clearNumbers();
+    endEdit();
   }
-  save(KEY_RECORDS, records);
-
-  // 次の入力に備えて、重量・回数・セット・メモだけ空にする
-  // （日付・部位・種目はそのまま残すので、続けて登録しやすい）
-  clearNumbers();
-  endEdit();
   renderAll();
 
   // 新しく登録したときだけ、自己ベストを更新していたらお祝いする（編集では出さない）
@@ -357,19 +376,38 @@ function clearNumbers() {
 // 記録の編集・削除
 // =============================================
 
-// 編集を始める（記録の内容をフォームに入れる）
-function startEdit(id) {
-  const record = load(KEY_RECORDS, []).find((r) => r.id === id);
-  if (!record) return;
+// 区分（アップ／メイン）を切り替える
+function setType(type) {
+  inputType = type;
+  typeButtons.forEach((button) => {
+    const active = button.dataset.type === type;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-checked", active);
+  });
+}
 
-  editingId = id;
+// 編集を始める（1行分の記録の内容をフォームに入れる）
+// ids：その行にまとめて表示している記録のid
+function startEdit(ids) {
+  const all = load(KEY_RECORDS, []);
+  const rows = ids.map((id) => all.find((r) => r.id === id)).filter(Boolean);
+  if (rows.length === 0) return;
+  const record = rows[0];
+
+  editingIds = rows.map((r) => r.id);
   inputDate.value = record.date;
   inputPart.value = record.part;
   renderExercises(record.exercise);
   inputWeight.value = record.weight === 0 ? "" : String(record.weight);
   inputReps.value = String(record.reps);
-  inputSets.value = String(record.sets);
-  inputMemo.value = record.memo || "";
+  // セット数は行の合計。メモは、複数あれば「 / 」でつなぐ
+  inputSets.value = String(rows.reduce((sum, r) => sum + r.sets, 0));
+  inputMemo.value = rows.map((r) => r.memo).filter(Boolean).join(" / ");
+  setType(isWarmup(record) ? "warmup" : "main");
+
+  // 編集のときだけ、セット数の欄を表示する
+  setsField.hidden = false;
+  numberRow.classList.add("has-sets");
 
   btnSubmit.textContent = "更新する";
   btnCancelEdit.hidden = false;
@@ -382,9 +420,11 @@ function startEdit(id) {
 
 // 編集をやめる（フォームを登録モードに戻す）
 function endEdit() {
-  editingId = null;
+  editingIds = [];
   btnSubmit.textContent = "登録する";
   btnCancelEdit.hidden = true;
+  setsField.hidden = true;
+  numberRow.classList.remove("has-sets");
 }
 
 // 「編集をやめる」ボタンを押したとき
@@ -395,29 +435,31 @@ function cancelEdit() {
   renderAll();
 }
 
-// 記録を削除する
-function deleteRecord(id) {
-  const records = load(KEY_RECORDS, []);
-  const record = records.find((r) => r.id === id);
-  if (!record) return;
+// 1行分の記録を削除する（まとめて表示している全セットを消す）
+// ids：その行の記録のid／label：確認メッセージに出す内容（例：「ベンチプレス 60kg × 10回」）
+function deleteRows(ids, label, totalSets) {
+  const setsText = totalSets > 1 ? `の${totalSets}セット分` : "";
+  if (!confirm(`「${label}」${setsText}を削除しますか？`)) return;
 
-  if (!confirm(`「${record.exercise}」の記録を削除しますか？`)) return;
-
-  save(KEY_RECORDS, records.filter((r) => r.id !== id));
-
-  // 削除したidを覚えておく（バックアップから復元しても、この記録は戻さない）
-  const deletedIds = load(KEY_DELETED, []);
-  if (!deletedIds.includes(id)) {
-    deletedIds.push(id);
-    save(KEY_DELETED, deletedIds);
-  }
+  save(KEY_RECORDS, load(KEY_RECORDS, []).filter((r) => !ids.includes(r.id)));
+  rememberDeleted(ids);
 
   // 編集中の記録を削除した場合は、編集をやめる
-  if (editingId === id) {
+  if (editingIds.some((id) => ids.includes(id))) {
     clearNumbers();
     endEdit();
   }
   renderAll();
+}
+
+// 削除したidを覚えておく（バックアップから復元しても、この記録は戻さない）
+function rememberDeleted(ids) {
+  if (ids.length === 0) return;
+  const deletedIds = load(KEY_DELETED, []);
+  ids.forEach((id) => {
+    if (!deletedIds.includes(id)) deletedIds.push(id);
+  });
+  save(KEY_DELETED, deletedIds);
 }
 
 // 入力画面と履歴の、両方の一覧を作り直す
@@ -429,6 +471,7 @@ function renderAll() {
   renderRanking();
   renderPartList();
   renderBackupInfo();
+  renderStats();
 }
 
 // =============================================
@@ -451,8 +494,33 @@ function groupConsecutive(records) {
   return groups;
 }
 
+// アップの記録かどうか（区分がない古い記録は、メインとして扱う）
+function isWarmup(record) {
+  return record.type === "warmup";
+}
+
+// 同じ種目の中で、連続した「重量・回数・区分が同じ」記録を1行にまとめる
+// 例：[60kg×10, 60kg×10, 70kg×8] → [[60kg×10, 60kg×10], [70kg×8]] → 「60kg × 10回 × 2セット」「70kg × 8回」
+function groupSameSets(group) {
+  const rows = [];
+  group.forEach((record) => {
+    const last = rows[rows.length - 1];
+    if (
+      last &&
+      last[0].weight === record.weight &&
+      last[0].reps === record.reps &&
+      isWarmup(last[0]) === isWarmup(record)
+    ) {
+      last.push(record);
+    } else {
+      rows.push([record]);
+    }
+  });
+  return rows;
+}
+
 // 1つのグループ（同じ種目の連続した記録）を、1つの枠（li）にして作る
-// onEdit：「編集」を押したときに実行する処理（記録のidを受け取る）
+// onEdit：「編集」を押したときに実行する処理（その行の記録のidの配列を受け取る）
 function createGroupItem(group, onEdit) {
   const li = document.createElement("li");
   li.className = "record-item";
@@ -469,40 +537,54 @@ function createGroupItem(group, onEdit) {
   head.append(part, exercise);
   li.appendChild(head);
 
-  // 2行目から：1回の登録ごとに1行（重量 × 回数 × セット ＋ 編集・削除ボタン）
-  group.forEach((record) => {
+  // 2行目から：同じ重量・回数・区分が続いた分を1行に（重量 × 回数 × セット ＋ 編集・削除ボタン）
+  groupSameSets(group).forEach((rowRecords) => {
+    const record = rowRecords[0];
+    const ids = rowRecords.map((r) => r.id);
+    const totalSets = rowRecords.reduce((sum, r) => sum + r.sets, 0);
+
     const row = document.createElement("div");
     row.className = "set-row";
-    if (record.id === editingId) row.classList.add("is-editing");
+    if (ids.some((id) => editingIds.includes(id))) row.classList.add("is-editing");
+    if (isWarmup(record)) row.classList.add("is-warmup");
 
     const main = document.createElement("div");
     main.className = "set-main";
     const detail = document.createElement("div");
     detail.className = "record-detail";
     const weightText = record.weight === 0 ? "自重" : `${record.weight}kg`;
-    detail.textContent = `${weightText} × ${record.reps}回 × ${record.sets}セット`;
+    // 1セットのときは「× 1セット」を付けない
+    const baseText = `${weightText} × ${record.reps}回`;
+    const detailText = totalSets > 1 ? `${baseText} × ${totalSets}セット` : baseText;
+    if (isWarmup(record)) {
+      const tag = document.createElement("span");
+      tag.className = "warmup-tag";
+      tag.textContent = "アップ";
+      detail.appendChild(tag);
+    }
+    detail.appendChild(document.createTextNode(detailText));
     main.appendChild(detail);
 
-    // メモ（あるときだけ）
-    if (record.memo) {
+    // メモ（あるものだけ、セットごとに並べる）
+    rowRecords.filter((r) => r.memo).forEach((r) => {
       const memo = document.createElement("div");
       memo.className = "record-memo";
-      memo.textContent = record.memo;
+      memo.textContent = r.memo;
       main.appendChild(memo);
-    }
+    });
 
-    // 編集・削除ボタン
+    // 編集・削除ボタン（その行の全セットが対象）
     const actions = document.createElement("div");
     actions.className = "record-actions";
     const btnEdit = document.createElement("button");
     btnEdit.type = "button";
     btnEdit.textContent = "編集";
-    btnEdit.addEventListener("click", () => onEdit(record.id));
+    btnEdit.addEventListener("click", () => onEdit(ids));
     const btnDelete = document.createElement("button");
     btnDelete.type = "button";
     btnDelete.className = "btn-delete";
     btnDelete.textContent = "削除";
-    btnDelete.addEventListener("click", () => deleteRecord(record.id));
+    btnDelete.addEventListener("click", () => deleteRows(ids, `${record.exercise} ${baseText}`, totalSets));
     actions.append(btnEdit, btnDelete);
 
     row.append(main, actions);
@@ -583,9 +665,9 @@ function renderHistory() {
 }
 
 // 履歴から「編集」を押したとき：入力画面に移動して編集を始める
-function editFromHistory(id) {
+function editFromHistory(ids) {
   showScreen("input");
-  startEdit(id);
+  startEdit(ids);
 }
 
 // =============================================
@@ -709,7 +791,7 @@ function handleCalendarTap(date, hasRecords) {
   // 記録がない日：確認してから、入力画面でその日付の登録を始める
   if (!confirm(`${formatDate(date)}の記録を登録しますか？`)) return;
 
-  if (editingId) {
+  if (editingIds.length > 0) {
     clearNumbers();
     endEdit();
   }
@@ -932,15 +1014,142 @@ function renderHome() {
 }
 
 // =============================================
+// ホーム：今週のメイン（セット数・総ボリューム・部位ごとのセット数）
+// =============================================
+// 週の途中でも公平に比べられるよう、比べる相手は「同じ曜日まで」の数字にする
+// 例：今日が水曜なら、先週の日〜水、直近4週もそれぞれの日〜水と比べる
+
+// 期間（from〜to、どちらも含む）のメインの記録を集計する
+function sumMain(records, from, to) {
+  const result = { sets: 0, volume: 0, byPart: {} };
+  PARTS.forEach((part) => (result.byPart[part] = 0));
+  records.forEach((r) => {
+    if (isWarmup(r) || r.date < from || r.date > to) return;
+    result.sets += r.sets;
+    if (r.weight > 0) result.volume += r.weight * r.reps * r.sets; // 自重は総ボリュームに含めない
+    if (r.part in result.byPart) result.byPart[r.part] += r.sets;
+  });
+  return result;
+}
+
+// 増減を「+3セット」「−12%」のような文字と、色の種類にする
+// mode："diff"（差）／"percent"（割合）
+function compareText(value, base, mode) {
+  if (mode === "percent") {
+    if (base === 0) return { text: value === 0 ? "±0%" : "—", cls: "" };
+    const pct = Math.round(((value - base) / base) * 100);
+    return { text: pct === 0 ? "±0%" : `${pct > 0 ? "+" : "−"}${Math.abs(pct)}%`, cls: pct > 0 ? "stats-up" : pct < 0 ? "stats-down" : "" };
+  }
+  const diff = Math.round((value - base) * 10) / 10;
+  return { text: diff === 0 ? "±0" : `${diff > 0 ? "+" : "−"}${Math.abs(diff)}`, cls: diff > 0 ? "stats-up" : diff < 0 ? "stats-down" : "" };
+}
+
+// 比べた結果の1行（例：「先週：12 → +3」）を作る
+function compareLine(label, baseText, compare) {
+  const line = document.createElement("div");
+  line.append(`${label}：${baseText} `);
+  const span = document.createElement("span");
+  span.className = compare.cls;
+  span.textContent = compare.text;
+  line.appendChild(span);
+  return line;
+}
+
+// 重さを「12,340kg」の形にする
+function volumeText(kg) {
+  return `${Math.round(kg).toLocaleString("ja-JP")}kg`;
+}
+
+function renderStats() {
+  const records = load(KEY_RECORDS, []);
+  const targets = loadSettings().weeklyTargets;
+  const start = getWeekStart(new Date());
+  const dayIndex = new Date().getDay(); // 今日が週の何日目か（0=日）
+
+  // weeksAgo 週前の「日曜〜今日と同じ曜日」の期間
+  const range = (weeksAgo) => {
+    const from = new Date(start.getFullYear(), start.getMonth(), start.getDate() - 7 * weeksAgo);
+    const to = new Date(from.getFullYear(), from.getMonth(), from.getDate() + dayIndex);
+    return [dateToString(from), dateToString(to)];
+  };
+
+  // 比べる相手にしない週：「今週は休み」の週と、記録を始める前の週
+  const dates = records.map((r) => r.date).sort();
+  const firstWeek = dates.length > 0 ? dateToString(getWeekStart(new Date(dates[0] + "T00:00:00"))) : null;
+  const isUsableWeek = (weekKey) => {
+    const target = targets[weekKey];
+    if (Array.isArray(target) && target.length === 0) return false; // 休みの週
+    return firstWeek !== null && weekKey >= firstWeek;
+  };
+
+  const [from, to] = range(0);
+  const now = sumMain(records, from, to);
+  statsPeriod.textContent = `${shortDate(from)}〜${shortDate(to)}（${WEEKDAYS[0]}〜${WEEKDAYS[dayIndex]}）`;
+
+  // 先週（同じ曜日まで）
+  const lastKey = range(1)[0];
+  const last = isUsableWeek(lastKey) ? sumMain(records, ...range(1)) : null;
+  const lastIsRest = Array.isArray(targets[lastKey]) && targets[lastKey].length === 0;
+
+  // 直近4週の平均（同じ曜日まで）
+  const pastWeeks = [1, 2, 3, 4].filter((w) => isUsableWeek(range(w)[0])).map((w) => sumMain(records, ...range(w)));
+  let avg = null;
+  if (pastWeeks.length > 0) {
+    avg = { sets: 0, volume: 0, byPart: {} };
+    PARTS.forEach((part) => (avg.byPart[part] = 0));
+    pastWeeks.forEach((week) => {
+      avg.sets += week.sets / pastWeeks.length;
+      avg.volume += week.volume / pastWeeks.length;
+      PARTS.forEach((part) => (avg.byPart[part] += week.byPart[part] / pastWeeks.length));
+    });
+  }
+
+  // セット数
+  statsSets.textContent = `${now.sets}セット`;
+  statsSetsCompare.innerHTML = "";
+  // 総ボリューム
+  statsVolume.textContent = volumeText(now.volume);
+  statsVolumeCompare.innerHTML = "";
+
+  if (last) {
+    statsSetsCompare.appendChild(compareLine("先週", `${last.sets}`, compareText(now.sets, last.sets, "diff")));
+    statsVolumeCompare.appendChild(compareLine("先週", volumeText(last.volume), compareText(now.volume, last.volume, "percent")));
+  } else {
+    const text = lastIsRest ? "先週：休みの週" : "先週：記録なし";
+    statsSetsCompare.appendChild(document.createTextNode(text));
+    statsVolumeCompare.appendChild(document.createTextNode(text));
+  }
+  if (avg) {
+    statsSetsCompare.appendChild(compareLine("4週平均", avg.sets.toFixed(1), compareText(now.sets, avg.sets, "diff")));
+    statsVolumeCompare.appendChild(compareLine("4週平均", volumeText(avg.volume), compareText(now.volume, avg.volume, "percent")));
+  }
+
+  // 部位ごとのセット数（カッコ内は直近4週の平均）
+  statsParts.innerHTML = "";
+  PARTS.forEach((part) => {
+    const li = document.createElement("li");
+    if (now.byPart[part] === 0) li.className = "is-zero";
+    const name = document.createElement("span");
+    name.textContent = `${part} `;
+    const count = document.createElement("b");
+    count.textContent = now.byPart[part];
+    const average = document.createElement("small");
+    average.textContent = avg ? `（${avg.byPart[part].toFixed(1)}）` : "（—）";
+    li.append(name, count, average);
+    statsParts.appendChild(li);
+  });
+}
+
+// =============================================
 // 自己ベスト（推定MAX）の計算
 // =============================================
 
 // 推定MAX（1回だけ挙げられる重さの推定値）を計算する
 // Brzycki式：重量 × 36 ÷ (37 − 回数)。日本でよく使われるRM表とほぼ同じ値になる
 // ・回数が多いほど推定がずれるので、13回以上は12回として計算する（少なめに見積もる）
-// ・重量0（自重）は対象外なので null を返す
+// ・重量0（自重）とアップは対象外なので null を返す
 function estimateMax(record) {
-  if (!(record.weight > 0)) return null;
+  if (!(record.weight > 0) || isWarmup(record)) return null;
   const reps = Math.min(record.reps, 12);
   const value = (record.weight * 36) / (37 - reps);
   return Math.round(value * 10) / 10; // 小数第1位まで
@@ -1518,6 +1727,9 @@ function init() {
   btnCalPrev.addEventListener("click", () => changeMonth(-1));
   btnCalNext.addEventListener("click", () => changeMonth(1));
   btnCancelEdit.addEventListener("click", cancelEdit);
+  typeButtons.forEach((button) => {
+    button.addEventListener("click", () => setType(button.dataset.type));
+  });
   btnEditPlan.addEventListener("click", () => openPlanModal("edit"));
   btnPlanOk.addEventListener("click", submitPlan);
   btnPlanLater.addEventListener("click", closePlanModal);

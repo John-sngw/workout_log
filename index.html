@@ -50,6 +50,27 @@
 
       <button type="button" id="btn-edit-plan" class="btn btn-sub btn-block">今週の予定を変更</button>
 
+      <!-- 今週のメイン（セット数・総ボリューム・部位ごとのセット数と比較） -->
+      <div class="card stats">
+        <h2 class="stats-title">今週のメイン</h2>
+        <p id="stats-period" class="stats-period"></p>
+        <div class="stats-grid">
+          <div class="stats-box">
+            <p class="stats-label">セット数</p>
+            <p id="stats-sets" class="stats-value"></p>
+            <p id="stats-sets-compare" class="stats-compare"></p>
+          </div>
+          <div class="stats-box">
+            <p class="stats-label">総ボリューム</p>
+            <p id="stats-volume" class="stats-value"></p>
+            <p id="stats-volume-compare" class="stats-compare"></p>
+          </div>
+        </div>
+        <p class="stats-label stats-part-title">部位ごとのセット数（カッコ内は直近4週の平均）</p>
+        <ul id="stats-parts" class="stats-parts"></ul>
+        <p class="stats-note">比べる相手は、どちらも「同じ曜日まで」の数字です。アップと「今週は休み」の週は含めません。総ボリューム＝重量×回数×セット数（自重は除く）</p>
+      </div>
+
       <!-- データのバックアップ（書き出し・復元） -->
       <div class="card backup">
         <h2 class="backup-title">データのバックアップ</h2>
@@ -134,8 +155,18 @@
         <button type="button" id="btn-cancel-exercise" class="btn btn-sub btn-plain">キャンセル</button>
       </div>
 
-      <!-- 重量・回数・セット数（数字キーボードが出るように inputmode を指定） -->
-      <div class="field-row">
+      <!-- アップ／メイン（選んだものは、登録したあとも残る） -->
+      <div class="field">
+        <span class="field-label">区分</span>
+        <div class="type-toggle" role="radiogroup" aria-label="区分">
+          <button type="button" class="type-btn" data-type="warmup" role="radio">アップ</button>
+          <button type="button" class="type-btn is-active" data-type="main" role="radio">メイン</button>
+        </div>
+      </div>
+
+      <!-- 重量・回数（数字キーボードが出るように inputmode を指定）
+           1回の登録＝1セット。セット数の欄は、編集のときだけ表示する -->
+      <div id="number-row" class="field-row">
         <label class="field">
           <span class="field-label">重量(kg)</span>
           <input type="text" id="input-weight" inputmode="decimal" placeholder="空=自重">
@@ -144,7 +175,7 @@
           <span class="field-label">回数</span>
           <input type="text" id="input-reps" inputmode="numeric" pattern="[0-9]*">
         </label>
-        <label class="field">
+        <label id="sets-field" class="field" hidden>
           <span class="field-label">セット</span>
           <input type="text" id="input-sets" inputmode="numeric" pattern="[0-9]*">
         </label>
