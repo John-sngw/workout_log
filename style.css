@@ -15,6 +15,13 @@
   --figure-hit: #e5484d;  /* 鍛えた部位（背中以外） */
   --figure-back: #ff9f0a; /* 背中 */
   --figure-line: #1c1c1e; /* 鍛えた部位（背中以外）の枠線 */
+
+  /* 今週のメインの色（信号と同じ意味） */
+  --ok: #248a3d;          /* 緑：直近4週の平均以上 */
+  --warn: #b26a00;        /* 黄：平均より少ない（白い背景で読めるよう濃いめ） */
+  --ok-bg: #e3f5e7;
+  --warn-bg: #fff4d6;
+  --zero-bg: #fde4e2;     /* 赤：今週まだ0セット */
 }
 
 /* ===== 色の設定（ダークモード：端末の設定に従う） ===== */
@@ -32,6 +39,11 @@
     --figure-hit: #ff5c5c;
     --figure-back: #ff9f0a;
     --figure-line: #000000;
+    --ok: #30d158;
+    --warn: #ffd60a;
+    --ok-bg: #12301a;
+    --warn-bg: #3a3000;
+    --zero-bg: #3d1512;
   }
 }
 
@@ -470,8 +482,24 @@ select:focus {
 
 /* ===== ホーム画面 ===== */
 .home-week {
+  position: relative; /* 右上のボタンを置くため */
   text-align: center;
   padding: 20px 12px;
+}
+
+/* 「今週」カードの右上の小さなボタン（予定の登録・変更） */
+.plan-edit-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  height: 32px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--accent);
 }
 
 .home-range {
@@ -596,99 +624,106 @@ select:focus {
 
 /* ===== 今週のメイン（集計） ===== */
 .stats {
-  margin-top: 24px;
+  margin-top: 10px;
+  padding: 12px;
 }
 
 .stats-title {
-  font-size: 17px;
-  margin: 0;
+  font-size: 16px;
+  margin: 0 0 8px;
 }
 
-.stats-period {
-  font-size: 13px;
-  color: var(--sub-text);
-  margin: 0 0 10px;
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.stats-box {
-  background: var(--bg);
-  border-radius: 12px;
-  padding: 10px 12px;
-}
-
-.stats-label {
-  font-size: 13px;
-  color: var(--sub-text);
-  margin: 0;
-}
-
-.stats-value {
-  font-size: 24px;
-  font-weight: 700;
-  margin: 2px 0;
-}
-
-.stats-compare {
-  font-size: 12px;
-  color: var(--sub-text);
-  margin: 0;
-  line-height: 1.6;
-}
-
-/* 増えたらオレンジ、減ったら赤 */
-.stats-up {
-  color: var(--accent);
-  font-weight: 700;
-}
-
-.stats-down {
-  color: var(--danger);
-  font-weight: 700;
-}
-
-.stats-part-title {
-  margin-top: 14px;
-}
-
+/* 部位ごとのセット数：6部位を横1列に並べる */
 .stats-parts {
   list-style: none;
-  margin: 6px 0 0;
+  margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
 }
 
 .stats-parts li {
   background: var(--bg);
   border-radius: 10px;
-  padding: 6px 8px;
-  font-size: 14px;
+  padding: 6px 0;
+  text-align: center;
 }
 
-.stats-parts b {
-  font-size: 18px;
-}
-
-.stats-parts small {
+.part-name {
+  display: block;
+  font-size: 12px;
   color: var(--sub-text);
 }
 
-/* 今週まだ0セットの部位は薄くする */
-.stats-parts li.is-zero {
+.part-sets {
+  display: block;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.part-diff {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
   color: var(--sub-text);
+}
+
+/* タイルの背景を信号の色にする（緑＝平均以上、黄＝平均より少ない、赤＝0セット） */
+.stats-parts li.is-ok { background: var(--ok-bg); }
+.stats-parts li.is-warn { background: var(--warn-bg); }
+.stats-parts li.is-zero { background: var(--zero-bg); }
+.stats-parts li.is-zero .part-sets { color: var(--danger); }
+
+/* 矢印と差の文字の色 */
+.is-ok .part-diff, .stats-ok { color: var(--ok); font-weight: 700; }
+.is-warn .part-diff, .stats-warn { color: var(--warn); font-weight: 700; }
+.is-zero .part-diff { color: var(--danger); }
+
+.stats-legend {
+  font-size: 11px;
+  color: var(--sub-text);
+  margin: 6px 0 0;
+}
+
+/* 合計セット数・総ボリューム */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.stats-box {
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 6px 10px;
+}
+
+.stats-label {
+  font-size: 12px;
+  color: var(--sub-text);
+  margin: 0;
+}
+
+.stats-value {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.stats-compare {
+  font-size: 11px;
+  color: var(--sub-text);
+  margin: 0;
+  line-height: 1.6;
 }
 
 .stats-note {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--sub-text);
-  margin: 10px 0 0;
+  margin: 8px 0 0;
 }
 
 /* ===== データのバックアップ ===== */
@@ -934,6 +969,22 @@ select:focus {
   font-size: 18px;
   font-weight: 700;
   white-space: nowrap;
+  text-align: right;
+}
+
+/* 推定MAXを出したセット（重量×回数）。推定MAXの横・下に小さく出す */
+.best-set {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sub-text);
+}
+
+.ex-value .best-set {
+  display: block;
+  margin-left: 0;
+  font-size: 12px;
 }
 
 /* グラフの枠 */

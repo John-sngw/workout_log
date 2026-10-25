@@ -82,7 +82,7 @@ const btnExport = document.getElementById("btn-export");
 const btnImport = document.getElementById("btn-import");
 const inputImport = document.getElementById("input-import");
 const planBackupNote = document.getElementById("plan-backup-note");
-const statsPeriod = document.getElementById("stats-period");
+const statsLegend = document.getElementById("stats-legend");
 const statsSets = document.getElementById("stats-sets");
 const statsSetsCompare = document.getElementById("stats-sets-compare");
 const statsVolume = document.getElementById("stats-volume");
@@ -999,10 +999,10 @@ function renderHome() {
   if (target === null) {
     homeTarget.textContent = "-";
     homeMessage.textContent = "今週の予定がまだ登録されていません";
-    btnEditPlan.textContent = "今週の予定を登録";
+    btnEditPlan.textContent = "予定を登録";
   } else {
     homeTarget.textContent = target.length;
-    btnEditPlan.textContent = "今週の予定を変更";
+    btnEditPlan.textContent = "予定を変更";
     if (target.length === 0) {
       homeMessage.textContent = "今週は休みの予定です";
     } else if (done >= target.length) {
@@ -1032,16 +1032,19 @@ function sumMain(records, from, to) {
   return result;
 }
 
-// 増減を「+3セット」「−12%」のような文字と、色の種類にする
+// 増減を「▲3」「▼12%」のような文字と、色の種類にする
+// 色は信号と同じ意味：比べる相手以上なら緑（"stats-ok"）、少なければ黄（"stats-warn"）
+// （赤と緑は国によって「上がった／下がった」の意味が逆になるので、▲▼も付けて状態で表す）
 // mode："diff"（差）／"percent"（割合）
 function compareText(value, base, mode) {
+  const cls = value >= base ? "stats-ok" : "stats-warn";
   if (mode === "percent") {
     if (base === 0) return { text: value === 0 ? "±0%" : "—", cls: "" };
     const pct = Math.round(((value - base) / base) * 100);
-    return { text: pct === 0 ? "±0%" : `${pct > 0 ? "+" : "−"}${Math.abs(pct)}%`, cls: pct > 0 ? "stats-up" : pct < 0 ? "stats-down" : "" };
+    return { text: pct === 0 ? "±0%" : `${pct > 0 ? "▲" : "▼"}${Math.abs(pct)}%`, cls: cls };
   }
   const diff = Math.round((value - base) * 10) / 10;
-  return { text: diff === 0 ? "±0" : `${diff > 0 ? "+" : "−"}${Math.abs(diff)}`, cls: diff > 0 ? "stats-up" : diff < 0 ? "stats-down" : "" };
+  return { text: diff === 0 ? "±0" : `${diff > 0 ? "▲" : "▼"}${Math.abs(diff)}`, cls: cls };
 }
 
 // 比べた結果の1行（例：「先週：12 → +3」）を作る
@@ -1084,7 +1087,6 @@ function renderStats() {
 
   const [from, to] = range(0);
   const now = sumMain(records, from, to);
-  statsPeriod.textContent = `${shortDate(from)}〜${shortDate(to)}（${WEEKDAYS[0]}〜${WEEKDAYS[dayIndex]}）`;
 
   // 先週（同じ曜日まで）
   const lastKey = range(1)[0];
@@ -1124,20 +1126,32 @@ function renderStats() {
     statsVolumeCompare.appendChild(compareLine("4週平均", volumeText(avg.volume), compareText(now.volume, avg.volume, "percent")));
   }
 
-  // 部位ごとのセット数（カッコ内は直近4週の平均）
+  // 部位ごとのセット数（6部位を横1列。タイルの色で状態を表す）
+  // 赤＝今週まだ0セット／緑＝直近4週の平均以上／黄＝平均より少ない／灰＝比べる平均がまだない
   statsParts.innerHTML = "";
   PARTS.forEach((part) => {
+    const sets = now.byPart[part];
     const li = document.createElement("li");
-    if (now.byPart[part] === 0) li.className = "is-zero";
+    if (sets === 0) li.className = "is-zero";
+    else if (avg) li.className = sets >= avg.byPart[part] ? "is-ok" : "is-warn";
+
     const name = document.createElement("span");
-    name.textContent = `${part} `;
-    const count = document.createElement("b");
-    count.textContent = now.byPart[part];
-    const average = document.createElement("small");
-    average.textContent = avg ? `（${avg.byPart[part].toFixed(1)}）` : "（—）";
-    li.append(name, count, average);
+    name.className = "part-name";
+    name.textContent = part;
+    const count = document.createElement("span");
+    count.className = "part-sets";
+    count.textContent = sets;
+    const diff = document.createElement("span");
+    diff.className = "part-diff";
+    diff.textContent = avg ? compareText(sets, avg.byPart[part], "diff").text : "—";
+    li.append(name, count, diff);
     statsParts.appendChild(li);
   });
+
+  // 色の説明（比べる期間の曜日も入れる）
+  statsLegend.textContent = avg
+    ? `▲▼は直近4週の平均との差（${WEEKDAYS[0]}〜${WEEKDAYS[dayIndex]}の同じ曜日までで比較）。緑＝平均以上、黄＝平均より少ない、赤＝今週まだ0セット`
+    : "記録が1週間分以上たまると、直近4週の平均と比べて色で表示します。赤＝今週まだ0セット";
 }
 
 // =============================================
@@ -1161,7 +1175,8 @@ function bestKey(record) {
 }
 
 // 全記録から、種目ごとの自己ベストをまとめる
-// 戻り値：{ "胸|ベンチプレス": { part, exercise, best, bestDate, first, points: [{date, value, isBest}] } }
+// 戻り値：{ "胸|ベンチプレス": { part, exercise, best, bestDate, bestWeight, bestReps, first, points: [{date, value, isBest}] } }
+// bestWeight・bestReps：自己ベストを出したセットの重量と回数（実際のセットの参考値）
 function getBests(records) {
   // 日付の古い順に並べる（同じ日なら登録した順）
   const sorted = records
@@ -1176,7 +1191,7 @@ function getBests(records) {
 
     const key = bestKey(record);
     if (!bests[key]) {
-      bests[key] = { part: record.part, exercise: record.exercise, best: 0, bestDate: "", first: 0, points: [] };
+      bests[key] = { part: record.part, exercise: record.exercise, best: 0, bestDate: "", bestWeight: 0, bestReps: 0, first: 0, points: [] };
     }
     const item = bests[key];
 
@@ -1192,6 +1207,8 @@ function getBests(records) {
     if (value > item.best) {
       item.best = value;
       item.bestDate = record.date;
+      item.bestWeight = record.weight;
+      item.bestReps = record.reps;
     }
   });
 
@@ -1229,6 +1246,11 @@ function animalSvg(kg) {
     `<svg class="animal" viewBox="0 0 100 70" role="img" aria-label="${animal.name}">` +
     `<path fill-rule="evenodd" d="${animal.d}"/></svg>`
   );
+}
+
+// 自己ベストを出したセットを「95kg × 4回」の形にする
+function bestSetText(item) {
+  return `${item.bestWeight}kg × ${item.bestReps}回`;
 }
 
 // "YYYY-MM-DD" を「10/24」の形にする
@@ -1270,6 +1292,11 @@ function renderRanking() {
     const value = document.createElement("div");
     value.className = "rank-value";
     value.textContent = `${item.best}kg`;
+    // 推定MAXを出したセット（重量×回数）
+    const bestSet = document.createElement("span");
+    bestSet.className = "best-set";
+    bestSet.textContent = `${bestSetText(item)}で達成`;
+    value.appendChild(bestSet);
     const sub = document.createElement("div");
     sub.className = "rank-sub";
     sub.textContent = `${animalText(item.best)} ・ ${shortDate(item.bestDate)}更新`;
@@ -1354,9 +1381,14 @@ function createExerciseRow(item) {
   sub.textContent = `${animalText(item.best)} ・ ${shortDate(item.bestDate)}更新`;
   main.append(name, sub);
 
+  // 右側：推定MAXと、それを出したセット（重量×回数）
   const value = document.createElement("div");
   value.className = "ex-value";
   value.textContent = `${item.best}kg`;
+  const bestSet = document.createElement("span");
+  bestSet.className = "best-set";
+  bestSet.textContent = bestSetText(item);
+  value.appendChild(bestSet);
   row.append(main, value);
 
   // 押すとグラフを開く（開けるのは1つだけ。もう一度押すと閉じる）

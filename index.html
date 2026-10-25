@@ -34,6 +34,8 @@
     <!-- 今週：目標と実績 -->
     <div id="panel-week" class="home-panel">
       <div class="card home-week">
+        <!-- 右上の小さなボタン（予定の登録・変更） -->
+        <button type="button" id="btn-edit-plan" class="plan-edit-btn">予定を変更</button>
         <p id="home-range" class="home-range"></p>
         <!-- 「今週 2/3回」 -->
         <p class="home-count">
@@ -48,15 +50,15 @@
         </p>
       </div>
 
-      <button type="button" id="btn-edit-plan" class="btn btn-sub btn-block">今週の予定を変更</button>
-
-      <!-- 今週のメイン（セット数・総ボリューム・部位ごとのセット数と比較） -->
+      <!-- 今週のメイン（上：部位ごとのセット数／下：合計セット数・総ボリューム）
+           色は信号と同じ：緑＝直近4週の平均以上、黄＝平均より少ない、赤＝今週まだ0セット -->
       <div class="card stats">
-        <h2 class="stats-title">今週のメイン</h2>
-        <p id="stats-period" class="stats-period"></p>
+        <h2 class="stats-title">今週のメイン（部位ごとのセット数）</h2>
+        <ul id="stats-parts" class="stats-parts"></ul>
+        <p id="stats-legend" class="stats-legend"></p>
         <div class="stats-grid">
           <div class="stats-box">
-            <p class="stats-label">セット数</p>
+            <p class="stats-label">合計セット数</p>
             <p id="stats-sets" class="stats-value"></p>
             <p id="stats-sets-compare" class="stats-compare"></p>
           </div>
@@ -66,9 +68,7 @@
             <p id="stats-volume-compare" class="stats-compare"></p>
           </div>
         </div>
-        <p class="stats-label stats-part-title">部位ごとのセット数（カッコ内は直近4週の平均）</p>
-        <ul id="stats-parts" class="stats-parts"></ul>
-        <p class="stats-note">比べる相手は、どちらも「同じ曜日まで」の数字です。アップと「今週は休み」の週は含めません。総ボリューム＝重量×回数×セット数（自重は除く）</p>
+        <p class="stats-note">アップと「今週は休み」の週は含めません。総ボリューム＝重量×回数×セット数（自重は除く）</p>
       </div>
 
       <!-- データのバックアップ（書き出し・復元） -->
