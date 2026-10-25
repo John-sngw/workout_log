@@ -609,7 +609,8 @@ const FIGURE_PARTS = {
   "胸": '<path d="M12 16.8Q16 15.3 19.4 16.3V24Q15.5 25.5 12 23Z M28 16.8Q24 15.3 20.6 16.3V24Q24.5 25.5 28 23Z"/>',
   "腹": '<path d="M15.2 26Q20 27.5 24.8 26V39.5H15.2Z"/>',
   "脚": '<path d="M12.2 42H19.2L19 50.5H12.7Q12 46 12.2 42Z M27.8 42H20.8L21 50.5H27.3Q28 46 27.8 42Z"/>',
-  "肩": '<path d="M5.6 16.3Q7 13.6 11 14.2L10.6 19.6Q7.5 19.2 5.6 16.3Z M34.4 16.3Q33 13.6 29 14.2L29.4 19.6Q32.5 19.2 34.4 16.3Z"/>',
+  // 肩は小さいと見えにくいので、元の約2倍の大きさにしている（肩の先から腕の付け根まで）
+  "肩": '<path d="M3.9 21.5Q3.4 14.2 9.5 12.9L13 14.1L12 22.8Q7.4 24.6 3.9 21.5Z M36.1 21.5Q36.6 14.2 30.5 12.9L27 14.1L28 22.8Q32.6 24.6 36.1 21.5Z"/>',
   "腕": '<path d="M5.3 17.5L9.6 19.5Q8 26 7.6 33H4.2Q4.1 24 5.3 17.5Z M34.7 17.5L30.4 19.5Q32 26 32.4 33H35.8Q35.9 24 34.7 17.5Z"/>',
 };
 
@@ -963,7 +964,7 @@ function getBests(records) {
 
     const key = bestKey(record);
     if (!bests[key]) {
-      bests[key] = { part: record.part, exercise: record.exercise, best: 0, bestDate: "", first: value, points: [] };
+      bests[key] = { part: record.part, exercise: record.exercise, best: 0, bestDate: "", first: 0, points: [] };
     }
     const item = bests[key];
 
@@ -982,8 +983,10 @@ function getBests(records) {
     }
   });
 
+  // 「初回から +○kg」の基準：最初に実施した日の最大値（アップのセットが基準にならないように）
   // グラフで「自己ベストを更新した日」に印を付ける
   Object.values(bests).forEach((item) => {
+    item.first = item.points[0].value;
     let max = 0;
     item.points.forEach((point) => {
       point.isBest = point.value > max;
