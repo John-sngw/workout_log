@@ -1127,13 +1127,15 @@ function renderStats() {
   }
 
   // 部位ごとのセット数（6部位を横1列。タイルの色で状態を表す）
-  // 赤＝今週まだ0セット／緑＝直近4週の平均以上／黄＝平均より少ない／灰＝比べる平均がまだない
+  // 赤＝今週まだ0セット／緑＝直近4週の平均以上／黄＝平均より少ない
+  // 灰＝比べる平均がまだない、または直近4週も0セット（普段やらない部位は警告しない）
   statsParts.innerHTML = "";
   PARTS.forEach((part) => {
     const sets = now.byPart[part];
+    const notUsually = avg && avg.byPart[part] === 0; // 直近4週の平均が0の部位
     const li = document.createElement("li");
-    if (sets === 0) li.className = "is-zero";
-    else if (avg) li.className = sets >= avg.byPart[part] ? "is-ok" : "is-warn";
+    if (sets === 0 && !notUsually) li.className = "is-zero";
+    else if (avg && sets > 0) li.className = sets >= avg.byPart[part] ? "is-ok" : "is-warn";
 
     const name = document.createElement("span");
     name.className = "part-name";
@@ -1150,7 +1152,7 @@ function renderStats() {
 
   // 色の説明（比べる期間の曜日も入れる）
   statsLegend.textContent = avg
-    ? `▲▼は直近4週の平均との差（${WEEKDAYS[0]}〜${WEEKDAYS[dayIndex]}の同じ曜日までで比較）。緑＝平均以上、黄＝平均より少ない、赤＝今週まだ0セット`
+    ? `▲▼は直近4週の平均との差（${WEEKDAYS[0]}〜${WEEKDAYS[dayIndex]}の同じ曜日までで比較）。緑＝平均以上、黄＝平均より少ない、赤＝今週まだ0セット、灰＝直近4週も0セット`
     : "記録が1週間分以上たまると、直近4週の平均と比べて色で表示します。赤＝今週まだ0セット";
 }
 
