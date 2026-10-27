@@ -1194,17 +1194,28 @@ select:focus {
   margin: 2px 0 0;
 }
 
+/* 更新するための目標：左に「重量×回数」（右寄せ）、右に「（推定○kg）」（左寄せ）の2列 */
+.best-goals {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 6px;
+  row-gap: 2px;
+  align-items: baseline;
+}
+
 .best-goal {
+  text-align: right;
   font-size: 17px;
   font-weight: 700;
   color: var(--accent);
-  margin: 2px 0 0;
+  white-space: nowrap;
 }
 
-.best-goal small {
+.best-goal-est {
+  text-align: left;
   font-size: 12px;
-  font-weight: 400;
   color: var(--sub-text);
+  white-space: nowrap;
 }
 
 .best-row {

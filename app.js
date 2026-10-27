@@ -1766,6 +1766,15 @@ function addSection(label) {
   return section;
 }
 
+// 重さの刻み：ダンベルの種目は1kg、それ以外は2.5kg
+// ・種目名に「ダンベル」が付くもの
+// ・名前に付かないが、ほぼダンベルで行う種目
+//  （ショルダープレスなど、ダンベル以外でも行う種目は 2.5kg のまま）
+const DUMBBELL_EXERCISES = ["サイドレイズ", "フロントレイズ", "リアレイズ", "ハンマーカール"];
+function weightStep(exercise) {
+  return exercise.includes("ダンベル") || DUMBBELL_EXERCISES.includes(exercise) ? 1 : 2.5;
+}
+
 function openBestModal() {
   const part = inputPart.value;
   const exercise = inputExercise.value;
@@ -1783,21 +1792,26 @@ function openBestModal() {
     if (best) {
       const section = addSection(`自己ベスト（推定MAX ${best.best}kg）`);
       addText(section, "best-set-big", bestSetText(best));
-      addText(section, "best-meta", `${formatDate(best.bestDate)}　${animalText(best.best)}`);
+      addText(section, "best-meta", formatDate(best.bestDate));
 
+      // 更新するための目標の例。「重量×回数」と「（推定○kg）」を2列にして、上下の位置を揃える
       const goals = addSection("更新するには（どちらか）");
+      const grid = document.createElement("div");
+      grid.className = "best-goals";
+      goals.appendChild(grid);
+      const addGoal = (weight, reps) => {
+        const set = document.createElement("span");
+        set.className = "best-goal";
+        set.textContent = `${weight}kg × ${reps}回`;
+        const est = document.createElement("span");
+        est.className = "best-goal-est";
+        est.textContent = `（推定${estimateMax({ weight: weight, reps: reps })}kg）`;
+        grid.append(set, est);
+      };
       // 同じ重量で、もう1回（12回までは回数が増えると推定MAXも増える）
-      if (best.bestReps < 12) {
-        const reps = best.bestReps + 1;
-        const value = estimateMax({ weight: best.bestWeight, reps: reps });
-        const line = addText(goals, "best-goal", `${best.bestWeight}kg × ${reps}回 `);
-        line.appendChild(Object.assign(document.createElement("small"), { textContent: `（推定${value}kg）` }));
-      }
-      // 2.5kg重くして、同じ回数
-      const weight = Math.round((best.bestWeight + 2.5) * 10) / 10;
-      const value2 = estimateMax({ weight: weight, reps: best.bestReps });
-      const line2 = addText(goals, "best-goal", `${weight}kg × ${best.bestReps}回 `);
-      line2.appendChild(Object.assign(document.createElement("small"), { textContent: `（推定${value2}kg）` }));
+      if (best.bestReps < 12) addGoal(best.bestWeight, best.bestReps + 1);
+      // 1段階重くして、同じ回数（ダンベルは1kg刻み、それ以外は2.5kg刻み）
+      addGoal(Math.round((best.bestWeight + weightStep(exercise)) * 10) / 10, best.bestReps);
     }
 
     // 前回のメイン：入力中の日付より前で、この種目のメインを記録したいちばん新しい日
