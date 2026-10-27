@@ -1775,14 +1775,15 @@ function weightStep(exercise) {
   return exercise.includes("ダンベル") || DUMBBELL_EXERCISES.includes(exercise) ? 1 : 2.5;
 }
 
-// 「重量 × 回数 補足」の1行を、表のように4つの列に分けて追加する
-// 列：重量（右揃え）／×（中央）／回数（左揃え）／補足（推定○kg や × Nセット）
-// 3つの項目すべてで同じ列の位置を使うので、重量・×・回数・補足の位置がそれぞれ揃う
+// 「重量 × 回数 補足」の1行を、表のように列に分けて追加する
+// 列：重量の数値（左揃え）／kg／×／回数（左揃え）／補足（推定○kg や × Nセット）
+// 3つの項目すべてで同じ列の位置を使うので、それぞれの位置が全項目で揃う
 function addSetLine(parent, weight, reps, extra) {
   const line = document.createElement("div");
   line.className = "set-line";
   const cells = [
-    ["set-weight", weight === 0 ? "自重" : `${weight}kg`],
+    ["set-num", weight === 0 ? "自重" : `${weight}`],
+    ["set-unit", weight === 0 ? "" : "kg"],
     ["set-times", "×"],
     ["set-reps", `${reps}回`],
     ["set-extra", extra],
