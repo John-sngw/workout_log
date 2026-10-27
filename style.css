@@ -164,6 +164,30 @@ select:focus {
   display: none;
 }
 
+/* 「種目」の見出しと、右の「自己ベスト」ボタンを横に並べる */
+.field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.field-head .field-label {
+  margin-bottom: 0;
+}
+
+/* 小さな「自己ベスト」ボタン */
+.best-btn {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: none;
+  border: 1px solid var(--accent);
+  border-radius: 13px;
+}
+
 /* アップ／メインの切り替え */
 .type-toggle {
   display: flex;
@@ -1115,6 +1139,105 @@ select:focus {
   margin: 6px 0 16px;
   font-size: 14px;
   color: var(--sub-text);
+}
+
+/* ===== 自己ベストのポップアップ ===== */
+.best-box {
+  padding: 16px;
+}
+
+.best-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+/* 右上の ✕ ボタン */
+.best-close {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--sub-text);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* 「自己ベスト」「更新するには」「前回のメイン」の各区切り */
+.best-section {
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-top: 8px;
+}
+
+.best-label {
+  font-size: 12px;
+  color: var(--sub-text);
+  margin: 0 0 2px;
+}
+
+/* 「重量 × 回数 補足」の1行。3つの項目すべてで同じ列の幅を使い、
+   それぞれの位置を揃える（表のような並び）
+   列：（左の余白）｜重量（数値とkgをくっつけて左揃え）｜×｜回数（左揃え）｜補足（左揃え） */
+.set-line {
+  display: grid;
+  font-size: 16px; /* 列の幅（em）の基準 */
+  /* 中の列はすべて決まった幅にして、左右の余白（minmax(0, 1fr)）を同じ幅で分ける
+     → 文字の長さに関係なく、どの行でも列の位置が同じになり、全体がカードの中央に来る
+     重量：「102.5kg」まで入る幅／×／回数：「12回」まで／補足：「（推定131.8kg）」まで */
+  grid-template-columns: minmax(0, 1fr) 4.7em 1.2em 2.8em 6.6em minmax(0, 1fr);
+  column-gap: 4px;
+  align-items: baseline;
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+/* 重量・×・回数：3つの項目で同じ大きさ・太さ・色 */
+.set-num,
+.set-times,
+.set-reps {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* 重量は2列目（1列目は左の余白）から。数値とkgをくっつけて左揃え */
+.set-num {
+  grid-column: 2;
+  text-align: left;
+}
+
+.set-times {
+  text-align: center;
+}
+
+.set-reps {
+  text-align: left;
+}
+
+/* 補足（推定○kg・× Nセット）と日付：小さめの灰色 */
+.set-extra,
+.best-meta {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--sub-text);
+  text-align: left;
+}
+
+.best-meta {
+  text-align: center;
+  margin: 2px 0 0;
+}
+
+.best-empty {
+  font-size: 14px;
+  color: var(--sub-text);
+  margin: 8px 0 4px;
 }
 
 /* ===== 今週の予定を登録するメッセージ ===== */

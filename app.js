@@ -74,6 +74,11 @@ const rankEmpty = document.getElementById("rank-empty");
 const partList = document.getElementById("part-list");
 const partEmpty = document.getElementById("part-empty");
 const pbModal = document.getElementById("pb-modal");
+const bestModal = document.getElementById("best-modal");
+const bestTitle = document.getElementById("best-title");
+const bestBody = document.getElementById("best-body");
+const btnBest = document.getElementById("btn-best");
+const btnBestClose = document.getElementById("best-close");
 const pbLabel = document.getElementById("pb-label");
 const pbTitle = document.getElementById("pb-title");
 const pbAnimal = document.getElementById("pb-animal");
@@ -1736,6 +1741,121 @@ async function importBackup(file) {
 }
 
 // =============================================
+// 入力画面の「自己ベスト」ポップアップ
+// =============================================
+// 漸進性過負荷のため、選んでいる種目の次の3つをすぐ見られるようにする
+// ・自己ベストのセット（推定MAXがいちばん大きいセット）
+// ・自己ベストを更新するための目標の例（同じ重量で+1回／+2.5kgで同じ回数）
+// ・前回のメインのセット（入力中の日付より前で、いちばん新しい日）
+
+// ポップアップの中に、文字の段落を1つ追加する
+function addText(parent, className, text) {
+  const p = document.createElement("p");
+  p.className = className;
+  p.textContent = text;
+  parent.appendChild(p);
+  return p;
+}
+
+// 「自己ベスト」「更新するには」「前回のメイン」の区切りを1つ作る
+function addSection(label) {
+  const section = document.createElement("div");
+  section.className = "best-section";
+  addText(section, "best-label", label);
+  bestBody.appendChild(section);
+  return section;
+}
+
+// 重さの刻み：ダンベルの種目は1kg、それ以外は2.5kg
+// ・種目名に「ダンベル」が付くもの
+// ・名前に付かないが、ほぼダンベルで行う種目
+//  （ショルダープレスなど、ダンベル以外でも行う種目は 2.5kg のまま）
+const DUMBBELL_EXERCISES = ["サイドレイズ", "フロントレイズ", "リアレイズ", "ハンマーカール"];
+function weightStep(exercise) {
+  return exercise.includes("ダンベル") || DUMBBELL_EXERCISES.includes(exercise) ? 1 : 2.5;
+}
+
+// 「重量 × 回数 補足」の1行を、表のように列に分けて追加する
+// 列：重量（「102.5kg」のように数値とkgをくっつけて左揃え）／×／回数（左揃え）／補足（推定○kg や × Nセット）
+// 3つの項目すべてで同じ列の位置を使うので、それぞれの位置が全項目で揃う
+function addSetLine(parent, weight, reps, extra) {
+  const line = document.createElement("div");
+  line.className = "set-line";
+  const cells = [
+    ["set-num", weight === 0 ? "自重" : `${weight}kg`],
+    ["set-times", "×"],
+    ["set-reps", `${reps}回`],
+    ["set-extra", extra],
+  ];
+  cells.forEach(([className, text]) => {
+    const span = document.createElement("span");
+    span.className = className;
+    span.textContent = text;
+    line.appendChild(span);
+  });
+  parent.appendChild(line);
+}
+
+function openBestModal() {
+  const part = inputPart.value;
+  const exercise = inputExercise.value;
+  bestBody.innerHTML = "";
+
+  if (!exercise || exercise === NEW_EXERCISE) {
+    bestTitle.textContent = "自己ベスト";
+    addText(bestBody, "best-empty", "種目を選んでください");
+  } else {
+    bestTitle.textContent = exercise;
+    const records = load(KEY_RECORDS, []);
+    const best = getBests(records)[`${part}|${exercise}`];
+
+    // 自己ベストのセットと、更新するための目標の例
+    if (best) {
+      const section = addSection("自己ベスト");
+      addSetLine(section, best.bestWeight, best.bestReps, `（推定${best.best}kg）`);
+      addText(section, "best-meta", formatDate(best.bestDate));
+
+      const goals = addSection("更新するには（どちらか）");
+      const addGoal = (weight, reps) => {
+        addSetLine(goals, weight, reps, `（推定${estimateMax({ weight: weight, reps: reps })}kg）`);
+      };
+      // 同じ重量で、もう1回（12回までは回数が増えると推定MAXも増える）
+      if (best.bestReps < 12) addGoal(best.bestWeight, best.bestReps + 1);
+      // 1段階重くして、同じ回数（ダンベルは1kg刻み、それ以外は2.5kg刻み）
+      addGoal(Math.round((best.bestWeight + weightStep(exercise)) * 10) / 10, best.bestReps);
+    }
+
+    // 前回のメイン：入力中の日付より前で、この種目のメインを記録したいちばん新しい日
+    const today = inputDate.value || todayString();
+    const mains = records.filter((r) => r.part === part && r.exercise === exercise && !isWarmup(r) && r.date < today);
+    if (mains.length > 0) {
+      const lastDate = mains.map((r) => r.date).sort().pop();
+      const section = addSection(`前回のメイン（${formatDate(lastDate)}）`);
+      // 同じ重量・回数が続いたセットは「× Nセット」にまとめる（一覧と同じまとめ方）
+      groupSameSets(mains.filter((r) => r.date === lastDate)).forEach((rows) => {
+        const r = rows[0];
+        const sets = rows.reduce((sum, x) => sum + x.sets, 0);
+        addSetLine(section, r.weight, r.reps, sets > 1 ? `× ${sets}セット` : "");
+      });
+    }
+
+    if (!best && mains.length === 0) {
+      addText(bestBody, "best-empty", "まだメインの記録がありません");
+    } else if (!best) {
+      addText(bestBody, "best-empty", "自重の種目は、自己ベスト（推定MAX）の対象外です");
+    }
+  }
+
+  bestModal.hidden = false;
+  document.body.classList.add("modal-open");
+}
+
+function closeBestModal() {
+  bestModal.hidden = true;
+  document.body.classList.remove("modal-open");
+}
+
+// =============================================
 // ホームの中のタブ（今週／ランキング／種目別）
 // =============================================
 
@@ -2002,6 +2122,12 @@ function init() {
   btnPlanLater.addEventListener("click", closePlanModal);
   btnPlanRest.addEventListener("click", restThisWeek);
   btnPbOk.addEventListener("click", closePbModal);
+  // 自己ベストのポップアップ：ボタンで開き、✕ボタンかポップアップの外側（暗い部分）を触ると閉じる
+  btnBest.addEventListener("click", openBestModal);
+  btnBestClose.addEventListener("click", closeBestModal);
+  bestModal.addEventListener("click", (event) => {
+    if (event.target === bestModal) closeBestModal();
+  });
   btnExport.addEventListener("click", exportBackup);
   // 「バックアップから復元」は、隠してあるファイル選択を開く
   btnImport.addEventListener("click", () => inputImport.click());
