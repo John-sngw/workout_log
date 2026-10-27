@@ -1884,11 +1884,14 @@ function setupHomeTabs() {
     button.addEventListener("click", () => showHomePanel(button.dataset.panel));
   });
 
-  homePager.addEventListener("touchstart", onPagerTouchStart, { passive: true });
+  // スワイプは、ホーム画面のどこを触っても受け付ける
+  // （タブの中身が短いときに、その下の空いている部分でもスワイプできるように）
+  const homeScreen = document.getElementById("screen-home");
+  homeScreen.addEventListener("touchstart", onPagerTouchStart, { passive: true });
   // 横の操作のときに画面の縦の動きを止めるため、passive: false にする
-  homePager.addEventListener("touchmove", onPagerTouchMove, { passive: false });
-  homePager.addEventListener("touchend", onPagerTouchEnd, { passive: true });
-  homePager.addEventListener("touchcancel", onPagerTouchEnd, { passive: true });
+  homeScreen.addEventListener("touchmove", onPagerTouchMove, { passive: false });
+  homeScreen.addEventListener("touchend", onPagerTouchEnd, { passive: true });
+  homeScreen.addEventListener("touchcancel", onPagerTouchEnd, { passive: true });
 
   // 種目別を開いた・記録が増えたなどで中身の高さが変わったら、高さを合わせ直す
   const observer = new ResizeObserver(() => {
