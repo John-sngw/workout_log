@@ -1200,21 +1200,24 @@ select:focus {
   margin: 2px 0 0;
 }
 
-/* 更新するための目標：「重量×回数」と「（推定○kg）」の2列。どちらも左揃えで、表のかたまりごと中央に置く */
+/* 更新するための目標：3列（左の空き・真ん中に「重量×回数」・右に「（推定○kg）」）
+   「重量×回数」は他の項目と同じくカードの中央に置き、「（推定○kg）」はその右に、上下で左端を揃えて出す */
 .best-goals {
   display: grid;
-  grid-template-columns: max-content max-content;
-  justify-content: center;
+  grid-template-columns: 1fr auto 1fr;
   column-gap: 8px;
   align-items: baseline;
-  text-align: left;
 }
 
 .best-goal {
+  grid-column: 2;
+  text-align: center;
   white-space: nowrap;
 }
 
 .best-goal-est {
+  grid-column: 3;
+  text-align: left;
   white-space: nowrap;
 }
 
