@@ -45,6 +45,7 @@ const btnCancelEdit = document.getElementById("btn-cancel-edit");
 const listTitle = document.getElementById("list-title");
 const recordList = document.getElementById("record-list");
 const listEmpty = document.getElementById("list-empty");
+const toast = document.getElementById("toast");
 const historyList = document.getElementById("history-list");
 const historyEmpty = document.getElementById("history-empty");
 const calTitle = document.getElementById("cal-title");
@@ -342,9 +343,11 @@ function handleSubmit(event) {
     // 新しい記録（1セット分）を追加する
     records.push({ id: createId(), ...data });
     save(KEY_RECORDS, records);
-    // 重量・回数・区分はそのまま残し、メモだけ空にする
-    // （同じ重さで次のセットをするときは「登録する」を押すだけでよい）
+    // 重量・区分はそのまま残し、回数とメモを空にする
+    // （回数はセットごとに変わることが多い。空にすることで、2回押しての二重登録も防げる）
+    inputReps.value = "";
     inputMemo.value = "";
+    showToast(...registeredText(data, records));
   } else {
     // 編集：行の最初の記録を書き換え、入力したセット数を持たせる
     // 同じ行の残りの記録は削除する（表示は「×Nセット」のまま変わらない）
@@ -362,6 +365,42 @@ function handleSubmit(event) {
 
   // 新しく登録したときだけ、自己ベストを更新していたらお祝いする（編集では出さない）
   if (isNew) celebrateIfBest(data, before);
+}
+
+// 登録したときの通知の文（1行目：登録した内容／2行目：セット数）
+// 例：「ベンチプレス 60kg × 10回を登録しました」「メイン 3セット目」
+// セット数は、その日のその種目の合計（重量が違っても、間に別の種目が入っても数える）
+// メインとアップは別々に数える
+function registeredText(data, records) {
+  const count = records
+    .filter(
+      (r) =>
+        r.date === data.date &&
+        r.part === data.part &&
+        r.exercise === data.exercise &&
+        isWarmup(r) === isWarmup(data)
+    )
+    .reduce((sum, r) => sum + r.sets, 0);
+  const weightText = data.weight === 0 ? "自重" : `${data.weight}kg`;
+  const typeText = isWarmup(data) ? "アップ" : "メイン";
+  return [`${data.exercise} ${weightText} × ${data.reps}回を登録しました`, `${typeText} ${count}セット目`];
+}
+
+// 画面の下に、短い通知を数秒だけ出す（sub：2行目に太字で出す文。なくてもよい）
+let toastTimer = null;
+function showToast(message, sub) {
+  toast.textContent = message;
+  if (sub) {
+    const strong = document.createElement("strong");
+    strong.className = "toast-sub";
+    strong.textContent = sub;
+    toast.appendChild(strong);
+  }
+  toast.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toast.hidden = true;
+  }, 2500);
 }
 
 // 重量・回数・セット・メモを空にする
@@ -807,6 +846,8 @@ function changeMonth(diff) {
   calYear = d.getFullYear();
   calMonth = d.getMonth();
   renderCalendar();
+  // 次の月は右から、前の月は左から入ってくる
+  playSlide(calGrid, diff > 0 ? "slide-from-right" : "slide-from-left");
 }
 
 // =============================================
@@ -1700,18 +1741,77 @@ async function importBackup(file) {
 // ホームの中のタブ（今週／ランキング／種目別）
 // =============================================
 
+// ホームの中のタブの並び（左から順に）
+const HOME_PANELS = ["week", "rank", "part"];
+let currentHomePanel = "week";
+
+// ホームの中のタブを切り替える
+// slide：スワイプで切り替えたときの動き（"slide-from-right" など。なければ動きなし）
+function showHomePanel(name, slide) {
+  currentHomePanel = name;
+  document.querySelectorAll(".segment-btn").forEach((b) => {
+    b.classList.toggle("is-active", b.dataset.panel === name);
+  });
+  document.querySelectorAll(".home-panel").forEach((p) => {
+    p.hidden = p.id !== `panel-${name}`;
+  });
+  if (slide) playSlide(document.getElementById(`panel-${name}`), slide);
+}
+
+// 左右に1つ隣のタブへ移る（step：1なら右隣、-1なら左隣。端では何もしない）
+function moveHomePanel(step) {
+  const next = HOME_PANELS[HOME_PANELS.indexOf(currentHomePanel) + step];
+  if (next) showHomePanel(next, step > 0 ? "slide-from-right" : "slide-from-left");
+}
+
 function setupHomeTabs() {
   document.querySelectorAll(".segment-btn").forEach((button) => {
-    button.addEventListener("click", () => {
-      const panel = button.dataset.panel;
-      document.querySelectorAll(".segment-btn").forEach((b) => {
-        b.classList.toggle("is-active", b === button);
-      });
-      document.querySelectorAll(".home-panel").forEach((p) => {
-        p.hidden = p.id !== `panel-${panel}`;
-      });
-    });
+    button.addEventListener("click", () => showHomePanel(button.dataset.panel));
   });
+  // ホーム画面で左にスワイプ → 右隣のタブ、右にスワイプ → 左隣のタブ
+  addSwipe(document.getElementById("screen-home"), () => moveHomePanel(1), () => moveHomePanel(-1));
+}
+
+// =============================================
+// 左右のスワイプ
+// =============================================
+
+// 要素に、左右のスワイプの処理を付ける
+// ・横の動きが50px以上で、縦の動きよりはっきり大きいときだけスワイプとみなす（縦スクロールと区別するため）
+// ・画面の端（左右20px）から始まった動きは無視する（Safariの「戻る」操作とぶつからないように）
+function addSwipe(element, onSwipeLeft, onSwipeRight) {
+  let startX = null;
+  let startY = 0;
+
+  element.addEventListener("touchstart", (event) => {
+    const touch = event.touches[0];
+    const edge = 20;
+    if (event.touches.length !== 1 || touch.clientX < edge || touch.clientX > window.innerWidth - edge) {
+      startX = null;
+      return;
+    }
+    startX = touch.clientX;
+    startY = touch.clientY;
+  }, { passive: true });
+
+  element.addEventListener("touchend", (event) => {
+    if (startX === null) return;
+    const touch = event.changedTouches[0];
+    const dx = touch.clientX - startX;
+    const dy = touch.clientY - startY;
+    startX = null;
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    if (dx < 0) onSwipeLeft();
+    else onSwipeRight();
+  }, { passive: true });
+}
+
+// 横から入ってくる動きを1回だけ再生する
+function playSlide(element, className) {
+  element.classList.remove("slide-from-right", "slide-from-left");
+  void element.offsetWidth; // 同じ動きを続けて再生できるように、一度リセットする
+  element.classList.add(className);
+  element.addEventListener("animationend", () => element.classList.remove(className), { once: true });
 }
 
 // =============================================
@@ -1760,6 +1860,8 @@ function init() {
   btnCancelExercise.addEventListener("click", cancelAddExercise);
   btnCalPrev.addEventListener("click", () => changeMonth(-1));
   btnCalNext.addEventListener("click", () => changeMonth(1));
+  // カレンダーを左にスワイプ → 次の月、右にスワイプ → 前の月
+  addSwipe(document.querySelector(".calendar"), () => changeMonth(1), () => changeMonth(-1));
   btnCancelEdit.addEventListener("click", cancelEdit);
   typeButtons.forEach((button) => {
     button.addEventListener("click", () => setType(button.dataset.type));
