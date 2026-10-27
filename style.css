@@ -1183,14 +1183,14 @@ select:focus {
 
 /* 「重量 × 回数 補足」の1行。3つの項目すべてで同じ列の幅を使い、
    それぞれの位置を揃える（表のような並び）
-   列：（左の余白）｜重量の数値（左揃え）｜kg｜×｜回数（左揃え）｜補足（左揃え） */
+   列：（左の余白）｜重量（数値とkgをくっつけて左揃え）｜×｜回数（左揃え）｜補足（左揃え） */
 .set-line {
   display: grid;
   font-size: 16px; /* 列の幅（em）の基準 */
   /* 中の列はすべて決まった幅にして、左右の余白（minmax(0, 1fr)）を同じ幅で分ける
      → 文字の長さに関係なく、どの行でも列の位置が同じになり、全体がカードの中央に来る
-     数値：「102.5」まで入る幅／kg／×／回数：「12回」まで／補足：「（推定131.8kg）」まで */
-  grid-template-columns: minmax(0, 1fr) 3.3em 1.4em 1.2em 2.8em 6.6em minmax(0, 1fr);
+     重量：「102.5kg」まで入る幅／×／回数：「12回」まで／補足：「（推定131.8kg）」まで */
+  grid-template-columns: minmax(0, 1fr) 4.7em 1.2em 2.8em 6.6em minmax(0, 1fr);
   column-gap: 4px;
   align-items: baseline;
   margin-top: 2px;
@@ -1199,7 +1199,6 @@ select:focus {
 
 /* 重量・×・回数：3つの項目で同じ大きさ・太さ・色 */
 .set-num,
-.set-unit,
 .set-times,
 .set-reps {
   font-size: 18px;
@@ -1207,13 +1206,9 @@ select:focus {
   color: var(--text);
 }
 
-/* 重量の数値は2列目（1列目は左の余白）から。数値は左揃え、kg はその右の列 */
+/* 重量は2列目（1列目は左の余白）から。数値とkgをくっつけて左揃え */
 .set-num {
   grid-column: 2;
-  text-align: left;
-}
-
-.set-unit {
   text-align: left;
 }
 

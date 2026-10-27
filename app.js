@@ -1776,14 +1776,13 @@ function weightStep(exercise) {
 }
 
 // 「重量 × 回数 補足」の1行を、表のように列に分けて追加する
-// 列：重量の数値（左揃え）／kg／×／回数（左揃え）／補足（推定○kg や × Nセット）
+// 列：重量（「102.5kg」のように数値とkgをくっつけて左揃え）／×／回数（左揃え）／補足（推定○kg や × Nセット）
 // 3つの項目すべてで同じ列の位置を使うので、それぞれの位置が全項目で揃う
 function addSetLine(parent, weight, reps, extra) {
   const line = document.createElement("div");
   line.className = "set-line";
   const cells = [
-    ["set-num", weight === 0 ? "自重" : `${weight}`],
-    ["set-unit", weight === 0 ? "" : "kg"],
+    ["set-num", weight === 0 ? "自重" : `${weight}kg`],
     ["set-times", "×"],
     ["set-reps", `${reps}回`],
     ["set-extra", extra],
