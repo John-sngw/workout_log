@@ -1181,44 +1181,52 @@ select:focus {
   margin: 0 0 2px;
 }
 
-/* 3つの項目（自己ベスト・更新するには・前回のメイン）は同じくらい大事なので、
-   数字（重量×回数）の大きさ・太さ・色を揃える。補足（日付・推定○kg）も同じ小さめの灰色 */
-.best-set-big,
-.best-goal,
-.best-row {
+/* 「重量 × 回数 補足」の1行。3つの項目すべてで同じ列の幅を使い、
+   重量・×・回数・補足の位置をそれぞれ揃える（表のような並び）
+   列：重量（右揃え）｜×（カードの中央）｜回数（左揃え）｜補足（左揃え） */
+.set-line {
+  display: grid;
+  /* minmax(0, 1fr)：文字の長さに関係なく、左右の列をいつも同じ幅で分ける（列の位置がずれないように） */
+  grid-template-columns: minmax(0, 1fr) 1.4em 2.8em minmax(0, 1fr);
+  column-gap: 4px;
+  align-items: baseline;
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+/* 重量・×・回数：3つの項目で同じ大きさ・太さ・色 */
+.set-weight,
+.set-times,
+.set-reps {
   font-size: 18px;
   font-weight: 700;
   color: var(--text);
-  margin: 2px 0 0;
 }
 
-.best-meta,
-.best-goal-est {
+.set-weight {
+  text-align: right;
+}
+
+.set-times {
+  text-align: center;
+}
+
+.set-reps {
+  text-align: left;
+}
+
+/* 補足（推定○kg・× Nセット）と日付：小さめの灰色 */
+.set-extra,
+.best-meta {
   font-size: 12px;
   font-weight: 400;
   color: var(--sub-text);
-  margin: 2px 0 0;
-}
-
-/* 更新するための目標：3列（左の空き・真ん中に「重量×回数」・右に「（推定○kg）」）
-   「重量×回数」は他の項目と同じくカードの中央に置き、「（推定○kg）」はその右に、上下で左端を揃えて出す */
-.best-goals {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  column-gap: 8px;
-  align-items: baseline;
-}
-
-.best-goal {
-  grid-column: 2;
-  text-align: center;
-  white-space: nowrap;
-}
-
-.best-goal-est {
-  grid-column: 3;
   text-align: left;
-  white-space: nowrap;
+}
+
+.best-meta {
+  text-align: center;
+  margin: 2px 0 0;
 }
 
 .best-empty {

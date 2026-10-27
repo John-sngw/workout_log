@@ -1775,6 +1775,27 @@ function weightStep(exercise) {
   return exercise.includes("ダンベル") || DUMBBELL_EXERCISES.includes(exercise) ? 1 : 2.5;
 }
 
+// 「重量 × 回数 補足」の1行を、表のように4つの列に分けて追加する
+// 列：重量（右揃え）／×（中央）／回数（左揃え）／補足（推定○kg や × Nセット）
+// 3つの項目すべてで同じ列の位置を使うので、重量・×・回数・補足の位置がそれぞれ揃う
+function addSetLine(parent, weight, reps, extra) {
+  const line = document.createElement("div");
+  line.className = "set-line";
+  const cells = [
+    ["set-weight", weight === 0 ? "自重" : `${weight}kg`],
+    ["set-times", "×"],
+    ["set-reps", `${reps}回`],
+    ["set-extra", extra],
+  ];
+  cells.forEach(([className, text]) => {
+    const span = document.createElement("span");
+    span.className = className;
+    span.textContent = text;
+    line.appendChild(span);
+  });
+  parent.appendChild(line);
+}
+
 function openBestModal() {
   const part = inputPart.value;
   const exercise = inputExercise.value;
@@ -1790,23 +1811,13 @@ function openBestModal() {
 
     // 自己ベストのセットと、更新するための目標の例
     if (best) {
-      const section = addSection(`自己ベスト（推定MAX ${best.best}kg）`);
-      addText(section, "best-set-big", bestSetText(best));
+      const section = addSection("自己ベスト");
+      addSetLine(section, best.bestWeight, best.bestReps, `（推定${best.best}kg）`);
       addText(section, "best-meta", formatDate(best.bestDate));
 
-      // 更新するための目標の例。「重量×回数」と「（推定○kg）」を2列にして、上下の位置を揃える
       const goals = addSection("更新するには（どちらか）");
-      const grid = document.createElement("div");
-      grid.className = "best-goals";
-      goals.appendChild(grid);
       const addGoal = (weight, reps) => {
-        const set = document.createElement("span");
-        set.className = "best-goal";
-        set.textContent = `${weight}kg × ${reps}回`;
-        const est = document.createElement("span");
-        est.className = "best-goal-est";
-        est.textContent = `（推定${estimateMax({ weight: weight, reps: reps })}kg）`;
-        grid.append(set, est);
+        addSetLine(goals, weight, reps, `（推定${estimateMax({ weight: weight, reps: reps })}kg）`);
       };
       // 同じ重量で、もう1回（12回までは回数が増えると推定MAXも増える）
       if (best.bestReps < 12) addGoal(best.bestWeight, best.bestReps + 1);
@@ -1824,8 +1835,7 @@ function openBestModal() {
       groupSameSets(mains.filter((r) => r.date === lastDate)).forEach((rows) => {
         const r = rows[0];
         const sets = rows.reduce((sum, x) => sum + x.sets, 0);
-        const weightText = r.weight === 0 ? "自重" : `${r.weight}kg`;
-        addText(section, "best-row", `${weightText} × ${r.reps}回${sets > 1 ? ` × ${sets}セット` : ""}`);
+        addSetLine(section, r.weight, r.reps, sets > 1 ? `× ${sets}セット` : "");
       });
     }
 
