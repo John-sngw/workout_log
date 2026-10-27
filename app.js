@@ -1749,42 +1749,107 @@ function pagerStep() {
   return homePager.clientWidth;
 }
 
-// いま表示しているタブの番号（0=今週、1=ランキング、2=種目別）
-function currentPanelIndex() {
-  return Math.round(homePager.scrollLeft / pagerStep());
-}
+// 指が画面に触れているか（触れている間は、位置の調整をしない）
+let pagerTouching = false;
+// 指が触れたときのスクロール位置（どちらに動かしたかを判定するため）
+let pagerStartLeft = 0;
+// 指を離したあとに止めるタブの番号（決まっていなければ null）
+let pagerTarget = null;
+// スクロールが止まったかを判定するためのタイマー
+let pagerSettleTimer = null;
 
-// 横スクロールの位置に合わせて、上の選択中の印・ボタンの色・高さを合わせる
-function syncHomePager() {
+// 上の選択中の印とボタンの色を、スクロールの位置に合わせる（指の動きにそのまま追従）
+function updateSegmentIndicator() {
   const step = pagerStep();
   if (step === 0) return; // ホームが表示されていないとき（幅が0）は何もしない
-
-  // 選択中の印は、指の動きに合わせて少しずつ動かす（途中の位置もそのまま反映）
   const progress = Math.min(Math.max(homePager.scrollLeft / step, 0), HOME_PANELS.length - 1);
   segmentIndicator.style.transform = `translateX(${progress * 100}%)`;
-
-  const index = currentPanelIndex();
+  const index = Math.round(progress);
   document.querySelectorAll(".segment-btn").forEach((b, i) => {
     b.classList.toggle("is-active", i === index);
   });
+}
 
-  // タブごとに縦の長さが違うので、表示しているタブの高さに合わせる（下に余白が出ないように）
+// 表示しているタブの高さに、入れ物の高さを合わせる（下に余白が出ないように）
+// ※スクロールの途中で高さを変えると、iPhoneでは吸着が止まってしまうので、止まってから呼ぶ
+function fitPagerHeight() {
+  const step = pagerStep();
+  if (step === 0) return;
+  const index = Math.round(homePager.scrollLeft / step);
   const panel = document.getElementById(`panel-${HOME_PANELS[index]}`);
   if (panel) homePager.style.height = `${panel.offsetHeight}px`;
 }
 
+// スクロールが止まったら：タブの位置からずれていれば、止めるタブまでなめらかに動かす
+// ぴったりタブの位置に止まっていれば、高さを合わせて終わり
+function settlePager() {
+  if (pagerTouching) return;
+  const step = pagerStep();
+  if (step === 0) return;
+  const index = pagerTarget !== null ? pagerTarget : Math.round(homePager.scrollLeft / step);
+  const left = index * step;
+  if (Math.abs(homePager.scrollLeft - left) > 1) {
+    homePager.scrollTo({ left: left, behavior: "smooth" });
+    return; // 動き終わると、もう一度ここに来る
+  }
+  pagerTarget = null;
+  fitPagerHeight();
+}
+
+// スクロールが一定時間（0.12秒）止まったら settlePager を呼ぶ
+function scheduleSettle() {
+  clearTimeout(pagerSettleTimer);
+  pagerSettleTimer = setTimeout(settlePager, 120);
+}
+
+// 位置・印・高さをまとめて合わせる（ホームを表示したときや、中身の高さが変わったとき）
+function syncHomePager() {
+  updateSegmentIndicator();
+  if (!pagerTouching) scheduleSettle();
+}
+
 // ボタンを押したときなどに、指定したタブまで横にスクロールする
 function showHomePanel(name) {
-  const index = HOME_PANELS.indexOf(name);
-  homePager.scrollTo({ left: index * pagerStep(), behavior: "smooth" });
+  pagerTarget = HOME_PANELS.indexOf(name);
+  homePager.scrollTo({ left: pagerTarget * pagerStep(), behavior: "smooth" });
 }
 
 function setupHomeTabs() {
   document.querySelectorAll(".segment-btn").forEach((button) => {
     button.addEventListener("click", () => showHomePanel(button.dataset.panel));
   });
-  // 指で動かしている間も、上の印を追従させる
-  homePager.addEventListener("scroll", syncHomePager, { passive: true });
+
+  // 指が触れたとき：位置を覚えておく
+  homePager.addEventListener("touchstart", () => {
+    pagerTouching = true;
+    pagerTarget = null;
+    pagerStartLeft = homePager.scrollLeft;
+    clearTimeout(pagerSettleTimer);
+  }, { passive: true });
+
+  // 指を離したとき：どのタブに止めるかを決める
+  // タブ幅の15%以上動かしていれば、その方向の隣のタブ。それより小さければ元のタブ
+  const onTouchEnd = () => {
+    pagerTouching = false;
+    const step = pagerStep();
+    if (step === 0) return;
+    const start = Math.round(pagerStartLeft / step);
+    const moved = homePager.scrollLeft - pagerStartLeft;
+    let target = start;
+    if (moved > step * 0.15) target = start + 1;
+    if (moved < -step * 0.15) target = start - 1;
+    pagerTarget = Math.min(Math.max(target, 0), HOME_PANELS.length - 1);
+    scheduleSettle();
+  };
+  homePager.addEventListener("touchend", onTouchEnd, { passive: true });
+  homePager.addEventListener("touchcancel", onTouchEnd, { passive: true });
+
+  // スクロール中：上の印を指に追従させ、止まったら位置を整える
+  homePager.addEventListener("scroll", () => {
+    updateSegmentIndicator();
+    if (!pagerTouching) scheduleSettle();
+  }, { passive: true });
+
   // 種目別を開いた・記録が増えたなどで中身の高さが変わったら、高さを合わせ直す
   const observer = new ResizeObserver(syncHomePager);
   document.querySelectorAll(".home-panel").forEach((panel) => observer.observe(panel));
