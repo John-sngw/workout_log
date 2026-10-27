@@ -771,6 +771,7 @@ select:focus {
 
 /* ===== ホームの中のタブ（今週／ランキング／種目別） ===== */
 .segment {
+  position: relative; /* 選択中の印を、ボタンの後ろに重ねるため */
   display: flex;
   background: var(--card);
   border-radius: 12px;
@@ -778,7 +779,20 @@ select:focus {
   margin-bottom: 14px;
 }
 
+/* 選択中の印（オレンジの角丸）。横スクロールに合わせて app.js が左右に動かす */
+.segment-indicator {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc((100% - 8px) / 3);
+  border-radius: 9px;
+  background: var(--accent);
+  will-change: transform;
+}
+
 .segment-btn {
+  position: relative; /* 選択中の印より手前に表示する */
   flex: 1;
   height: 40px;
   border: none;
@@ -787,15 +801,38 @@ select:focus {
   color: var(--sub-text);
   font-size: 15px;
   font-weight: 600;
+  transition: color 0.2s;
 }
 
 .segment-btn.is-active {
-  background: var(--accent);
   color: var(--accent-text);
 }
 
-.home-panel[hidden] {
+/* 3つのタブを横に並べ、指で左右にスクロールできるようにする
+   scroll-snap：指を離すと、いちばん近いタブの位置でピタッと止まる（iPhone本来の動き） */
+.home-pager {
+  display: flex;
+  align-items: flex-start;
+  /* 画面の左右の余白（16px）まで広げ、スワイプ中の中身が画面の端まで動くようにする */
+  margin: 0 -16px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain; /* 端で引っ張っても、Safariの「戻る」にしない */
+  scrollbar-width: none;          /* スクロールバーを隠す */
+  transition: height 0.25s ease;  /* タブごとに高さが違うので、なめらかに合わせる */
+}
+
+.home-pager::-webkit-scrollbar {
   display: none;
+}
+
+.home-panel {
+  flex: 0 0 100%;
+  min-width: 0;
+  padding: 0 16px; /* 広げた分、中身は元の位置に戻す */
+  scroll-snap-align: start;
+  scroll-snap-stop: always; /* 勢いよくはじいても、1つずつ止まる */
 }
 
 /* 動物のシルエット（色は文字と同じ） */
@@ -1295,11 +1332,14 @@ body.modal-open {
   color: var(--sub-text);
 }
 
+/* タブのアイコン：ふだんは線、選んでいるときは塗りつぶし（iPhoneの標準アイコンと同じ考え方） */
 .tab-icon {
-  font-size: 22px;
-  line-height: 1;
-  filter: grayscale(1);
-  opacity: 0.6;
+  width: 26px;
+  height: 26px;
+}
+
+.tab-icon .icon-fill {
+  display: none;
 }
 
 .tab.is-active {
@@ -1307,7 +1347,10 @@ body.modal-open {
   font-weight: 600;
 }
 
-.tab.is-active .tab-icon {
-  filter: none;
-  opacity: 1;
+.tab.is-active .icon-line {
+  display: none;
+}
+
+.tab.is-active .icon-fill {
+  display: inline;
 }

@@ -1741,33 +1741,54 @@ async function importBackup(file) {
 
 // ホームの中のタブの並び（左から順に）
 const HOME_PANELS = ["week", "rank", "part"];
-let currentHomePanel = "week";
+const homePager = document.getElementById("home-pager");
+const segmentIndicator = document.getElementById("segment-indicator");
 
-// ホームの中のタブを切り替える
-// slide：スワイプで切り替えたときの動き（"slide-from-right" など。なければ動きなし）
-function showHomePanel(name, slide) {
-  currentHomePanel = name;
-  document.querySelectorAll(".segment-btn").forEach((b) => {
-    b.classList.toggle("is-active", b.dataset.panel === name);
-  });
-  document.querySelectorAll(".home-panel").forEach((p) => {
-    p.hidden = p.id !== `panel-${name}`;
-  });
-  if (slide) playSlide(document.getElementById(`panel-${name}`), slide);
+// 横スクロールの1タブ分の幅（＝横スクロールの入れ物の幅）
+function pagerStep() {
+  return homePager.clientWidth;
 }
 
-// 左右に1つ隣のタブへ移る（step：1なら右隣、-1なら左隣。端では何もしない）
-function moveHomePanel(step) {
-  const next = HOME_PANELS[HOME_PANELS.indexOf(currentHomePanel) + step];
-  if (next) showHomePanel(next, step > 0 ? "slide-from-right" : "slide-from-left");
+// いま表示しているタブの番号（0=今週、1=ランキング、2=種目別）
+function currentPanelIndex() {
+  return Math.round(homePager.scrollLeft / pagerStep());
+}
+
+// 横スクロールの位置に合わせて、上の選択中の印・ボタンの色・高さを合わせる
+function syncHomePager() {
+  const step = pagerStep();
+  if (step === 0) return; // ホームが表示されていないとき（幅が0）は何もしない
+
+  // 選択中の印は、指の動きに合わせて少しずつ動かす（途中の位置もそのまま反映）
+  const progress = Math.min(Math.max(homePager.scrollLeft / step, 0), HOME_PANELS.length - 1);
+  segmentIndicator.style.transform = `translateX(${progress * 100}%)`;
+
+  const index = currentPanelIndex();
+  document.querySelectorAll(".segment-btn").forEach((b, i) => {
+    b.classList.toggle("is-active", i === index);
+  });
+
+  // タブごとに縦の長さが違うので、表示しているタブの高さに合わせる（下に余白が出ないように）
+  const panel = document.getElementById(`panel-${HOME_PANELS[index]}`);
+  if (panel) homePager.style.height = `${panel.offsetHeight}px`;
+}
+
+// ボタンを押したときなどに、指定したタブまで横にスクロールする
+function showHomePanel(name) {
+  const index = HOME_PANELS.indexOf(name);
+  homePager.scrollTo({ left: index * pagerStep(), behavior: "smooth" });
 }
 
 function setupHomeTabs() {
   document.querySelectorAll(".segment-btn").forEach((button) => {
     button.addEventListener("click", () => showHomePanel(button.dataset.panel));
   });
-  // ホーム画面で左にスワイプ → 右隣のタブ、右にスワイプ → 左隣のタブ
-  addSwipe(document.getElementById("screen-home"), () => moveHomePanel(1), () => moveHomePanel(-1));
+  // 指で動かしている間も、上の印を追従させる
+  homePager.addEventListener("scroll", syncHomePager, { passive: true });
+  // 種目別を開いた・記録が増えたなどで中身の高さが変わったら、高さを合わせ直す
+  const observer = new ResizeObserver(syncHomePager);
+  document.querySelectorAll(".home-panel").forEach((panel) => observer.observe(panel));
+  window.addEventListener("resize", syncHomePager);
 }
 
 // =============================================
@@ -1827,6 +1848,8 @@ function showScreen(name) {
     screen.hidden = screen.id !== `screen-${name}`;
   });
   window.scrollTo(0, 0);
+  // ホームを表示したら、上の選択中の印と高さを合わせる
+  if (name === "home") syncHomePager();
 }
 
 function setupTabs() {
