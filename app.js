@@ -45,9 +45,6 @@ const btnCancelEdit = document.getElementById("btn-cancel-edit");
 const listTitle = document.getElementById("list-title");
 const recordList = document.getElementById("record-list");
 const listEmpty = document.getElementById("list-empty");
-const toast = document.getElementById("toast");
-const toastTitle = document.getElementById("toast-title");
-const toastDetail = document.getElementById("toast-detail");
 const historyList = document.getElementById("history-list");
 const historyEmpty = document.getElementById("history-empty");
 const calTitle = document.getElementById("cal-title");
@@ -354,7 +351,7 @@ function handleSubmit(event) {
     // （回数はセットごとに変わることが多い。空にすることで、2回押しての二重登録も防げる）
     inputReps.value = "";
     inputMemo.value = "";
-    showToast(...registeredText(data, records));
+    flashSubmitDone(setCountText(data, records));
   } else {
     // 編集：行の最初の記録を書き換え、入力したセット数を持たせる
     // 同じ行の残りの記録は削除する（表示は「×Nセット」のまま変わらない）
@@ -374,11 +371,10 @@ function handleSubmit(event) {
   if (isNew) celebrateIfBest(data, before);
 }
 
-// 登録したときの通知の文（1行目：種目とセット数／2行目：登録した内容）
-// 例：「ベンチプレス　メイン 3セット目」「60kg × 10回を登録しました」
+// その日のその種目の、今のセット数の文（例：「メイン 3セット目」）
 // セット数は、その日のその種目の合計（重量が違っても、間に別の種目が入っても数える）
 // メインとアップは別々に数える
-function registeredText(data, records) {
+function setCountText(data, records) {
   const count = records
     .filter(
       (r) =>
@@ -388,22 +384,28 @@ function registeredText(data, records) {
         isWarmup(r) === isWarmup(data)
     )
     .reduce((sum, r) => sum + r.sets, 0);
-  const weightText = data.weight === 0 ? "自重" : `${data.weight}kg`;
-  const typeText = isWarmup(data) ? "アップ" : "メイン";
-  return [`${data.exercise}　${typeText} ${count}セット目`, `${weightText} × ${data.reps}回を登録しました`];
+  return `${isWarmup(data) ? "アップ" : "メイン"} ${count}セット目`;
 }
 
-// 画面の下に、短い通知を出す（title：太字の見出し／detail：薄い文字の説明）
-// ふわっと出て（0.35秒）、3秒表示したあと、ふわっと消える（0.5秒）
-let toastTimer = null;
-function showToast(title, detail) {
-  toastTitle.textContent = title;
-  toastDetail.textContent = detail || "";
-  toast.classList.add("is-visible");
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => {
-    toast.classList.remove("is-visible");
-  }, 3000);
+// 登録したとき：「登録する」ボタンを約2秒だけ緑にして「✓ メイン 3セット目を登録」と表示する
+let submitDoneTimer = null;
+function flashSubmitDone(label) {
+  btnSubmit.classList.add("is-done");
+  btnSubmit.innerHTML =
+    '<span class="btn-done-label"><svg viewBox="0 0 24 24" aria-hidden="true">' +
+    '<circle cx="12" cy="12" r="12" fill="#fff"/>' +
+    '<path d="M7 12.5l3.2 3.2L17 9" fill="none" stroke="#34c759" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>' +
+    "</svg><span></span></span>";
+  btnSubmit.querySelector(".btn-done-label > span").textContent = `${label}を登録`;
+  clearTimeout(submitDoneTimer);
+  submitDoneTimer = setTimeout(resetSubmitButton, 2000);
+}
+
+// 「登録する」ボタンを元に戻す（編集中なら「更新する」）
+function resetSubmitButton() {
+  clearTimeout(submitDoneTimer);
+  btnSubmit.classList.remove("is-done");
+  btnSubmit.textContent = editingIds.length > 0 ? "更新する" : "登録する";
 }
 
 // 重量・回数・セット・メモを空にする
@@ -451,6 +453,7 @@ function startEdit(ids) {
   setsField.hidden = false;
   numberRow.classList.add("has-sets");
 
+  resetSubmitButton(); // 登録の緑の表示が残っていれば止める
   btnSubmit.textContent = "更新する";
   btnCancelEdit.hidden = false;
   showError("");
@@ -2104,6 +2107,8 @@ function init() {
 
   // 各操作に処理をつなぐ
   form.addEventListener("submit", handleSubmit);
+  // 入力し直したら、エラーの表示をすぐ消す（次に「登録する」を押すまで残らないように）
+  form.addEventListener("input", () => showError(""));
   inputPart.addEventListener("change", () => renderExercises());
   inputDate.addEventListener("change", renderList);
   inputExercise.addEventListener("change", handleExerciseChange);
