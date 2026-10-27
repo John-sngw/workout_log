@@ -33,74 +33,77 @@
       <button type="button" class="segment-btn" data-panel="part">種目別</button>
     </div>
 
-    <!-- 3つのタブを横に並べる。指で左右にスクロールすると、指に合わせて動き、離すとタブの位置で止まる -->
+    <!-- 3つのタブを横に並べた「帯」を、指の動きに合わせて左右に動かす（動きは app.js で制御）
+         home-pager：見える窓（はみ出した部分は隠す）／home-track：3つのタブを並べた帯 -->
     <div id="home-pager" class="home-pager">
-      <!-- 今週：目標と実績 -->
-      <div id="panel-week" class="home-panel">
-        <div class="card home-week">
-          <!-- 右上の小さなボタン（予定の登録・変更） -->
-          <button type="button" id="btn-edit-plan" class="plan-edit-btn">予定を変更</button>
-          <p id="home-range" class="home-range"></p>
-          <!-- 「今週 2/3回」 -->
-          <p class="home-count">
-            今週 <strong id="home-done">0</strong><span class="home-slash">/</span><span id="home-target">-</span>回
-          </p>
-          <p id="home-message" class="home-message"></p>
-          <!-- 日〜土の7つの丸（予定日は枠線、実施日は塗りつぶし） -->
-          <div id="home-days" class="home-days"></div>
-          <p class="home-legend">
-            <span><i class="legend-mark is-plan"></i>予定</span>
-            <span><i class="legend-mark is-done"></i>実施</span>
-          </p>
-        </div>
-
-        <!-- 今週のメイン（上：部位ごとのセット数／下：合計セット数・総ボリューム）
-             色は信号と同じ：緑＝直近4週の平均以上、黄＝平均より少ない、赤＝今週まだ0セット -->
-        <div class="card stats">
-          <h2 class="stats-title">今週のメイン（部位ごとのセット数）</h2>
-          <ul id="stats-parts" class="stats-parts"></ul>
-          <p id="stats-legend" class="stats-legend"></p>
-          <div class="stats-grid">
-            <div class="stats-box">
-              <p class="stats-label">合計セット数</p>
-              <p id="stats-sets" class="stats-value"></p>
-              <p id="stats-sets-compare" class="stats-compare"></p>
-            </div>
-            <div class="stats-box">
-              <p class="stats-label">総ボリューム</p>
-              <p id="stats-volume" class="stats-value"></p>
-              <p id="stats-volume-compare" class="stats-compare"></p>
-            </div>
+      <div id="home-track" class="home-track">
+        <!-- 今週：目標と実績 -->
+        <div id="panel-week" class="home-panel">
+          <div class="card home-week">
+            <!-- 右上の小さなボタン（予定の登録・変更） -->
+            <button type="button" id="btn-edit-plan" class="plan-edit-btn">予定を変更</button>
+            <p id="home-range" class="home-range"></p>
+            <!-- 「今週 2/3回」 -->
+            <p class="home-count">
+              今週 <strong id="home-done">0</strong><span class="home-slash">/</span><span id="home-target">-</span>回
+            </p>
+            <p id="home-message" class="home-message"></p>
+            <!-- 日〜土の7つの丸（予定日は枠線、実施日は塗りつぶし） -->
+            <div id="home-days" class="home-days"></div>
+            <p class="home-legend">
+              <span><i class="legend-mark is-plan"></i>予定</span>
+              <span><i class="legend-mark is-done"></i>実施</span>
+            </p>
           </div>
-          <p class="stats-note">アップと「今週は休み」の週は含めません。総ボリューム＝重量×回数×セット数（自重は除く）</p>
+
+          <!-- 今週のメイン（上：部位ごとのセット数／下：合計セット数・総ボリューム）
+               色は信号と同じ：緑＝直近4週の平均以上、黄＝平均より少ない、赤＝今週まだ0セット -->
+          <div class="card stats">
+            <h2 class="stats-title">今週のメイン（部位ごとのセット数）</h2>
+            <ul id="stats-parts" class="stats-parts"></ul>
+            <p id="stats-legend" class="stats-legend"></p>
+            <div class="stats-grid">
+              <div class="stats-box">
+                <p class="stats-label">合計セット数</p>
+                <p id="stats-sets" class="stats-value"></p>
+                <p id="stats-sets-compare" class="stats-compare"></p>
+              </div>
+              <div class="stats-box">
+                <p class="stats-label">総ボリューム</p>
+                <p id="stats-volume" class="stats-value"></p>
+                <p id="stats-volume-compare" class="stats-compare"></p>
+              </div>
+            </div>
+            <p class="stats-note">アップと「今週は休み」の週は含めません。総ボリューム＝重量×回数×セット数（自重は除く）</p>
+          </div>
+
+          <!-- データのバックアップ（書き出し・復元） -->
+          <div class="card backup">
+            <h2 class="backup-title">データのバックアップ</h2>
+            <p id="backup-last" class="backup-last"></p>
+            <button type="button" id="btn-export" class="btn btn-main">バックアップを書き出す</button>
+            <button type="button" id="btn-import" class="btn btn-sub btn-block">バックアップから復元</button>
+            <!-- 「バックアップから復元」を押したときに開くファイル選択（画面には出さない） -->
+            <input type="file" id="input-import" accept=".json,application/json" hidden>
+            <p class="backup-note">
+              「ファイル」アプリのiCloud Driveに保存しておくと安心です。
+              ファイル名は毎回「workout_backup.json」なので、同じ場所に保存すると前回の分と置き換えられます。
+            </p>
+          </div>
         </div>
 
-        <!-- データのバックアップ（書き出し・復元） -->
-        <div class="card backup">
-          <h2 class="backup-title">データのバックアップ</h2>
-          <p id="backup-last" class="backup-last"></p>
-          <button type="button" id="btn-export" class="btn btn-main">バックアップを書き出す</button>
-          <button type="button" id="btn-import" class="btn btn-sub btn-block">バックアップから復元</button>
-          <!-- 「バックアップから復元」を押したときに開くファイル選択（画面には出さない） -->
-          <input type="file" id="input-import" accept=".json,application/json" hidden>
-          <p class="backup-note">
-            「ファイル」アプリのiCloud Driveに保存しておくと安心です。
-            ファイル名は毎回「workout_backup.json」なので、同じ場所に保存すると前回の分と置き換えられます。
-          </p>
+        <!-- ランキング：種目ごとの自己ベスト（推定MAX）を重い順に -->
+        <div id="panel-rank" class="home-panel">
+          <ol id="rank-list" class="rank-list"></ol>
+          <p id="rank-empty" class="list-empty">まだ記録がありません<br>重量のある種目を登録すると表示されます</p>
+          <p class="pb-note">推定MAX：1回だけ挙げられる重さの推定値（重量×36÷(37−回数)）。自重の種目は対象外</p>
         </div>
-      </div>
 
-      <!-- ランキング：種目ごとの自己ベスト（推定MAX）を重い順に -->
-      <div id="panel-rank" class="home-panel">
-        <ol id="rank-list" class="rank-list"></ol>
-        <p id="rank-empty" class="list-empty">まだ記録がありません<br>重量のある種目を登録すると表示されます</p>
-        <p class="pb-note">推定MAX：1回だけ挙げられる重さの推定値（重量×36÷(37−回数)）。自重の種目は対象外</p>
-      </div>
-
-      <!-- 種目別：部位ごとにたたんだ一覧。種目を押すとグラフを表示 -->
-      <div id="panel-part" class="home-panel">
-        <div id="part-list"></div>
-        <p id="part-empty" class="list-empty">まだ記録がありません<br>重量のある種目を登録すると表示されます</p>
+        <!-- 種目別：部位ごとにたたんだ一覧。種目を押すとグラフを表示 -->
+        <div id="panel-part" class="home-panel">
+          <div id="part-list"></div>
+          <p id="part-empty" class="list-empty">まだ記録がありません<br>重量のある種目を登録すると表示されます</p>
+        </div>
       </div>
     </div>
   </section>

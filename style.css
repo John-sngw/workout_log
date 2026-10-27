@@ -808,31 +808,33 @@ select:focus {
   color: var(--accent-text);
 }
 
-/* 3つのタブを横に並べ、指で左右にスクロールできるようにする
-   scroll-snap：指を離すと、いちばん近いタブの位置でピタッと止まる（iPhone本来の動き） */
+/* 見える窓：3つのタブのうち1つ分だけを見せ、はみ出した部分は隠す
+   （ブラウザの横スクロールは使わず、指の動きは app.js で受け取って帯を動かす） */
 .home-pager {
-  display: flex;
-  align-items: flex-start;
   /* 画面の左右の余白（16px）まで広げ、スワイプ中の中身が画面の端まで動くようにする */
   margin: 0 -16px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scroll-snap-type: x mandatory;
-  overscroll-behavior-x: contain; /* 端で引っ張っても、Safariの「戻る」にしない */
-  scrollbar-width: none;          /* スクロールバーを隠す */
-  transition: height 0.25s ease;  /* タブごとに高さが違うので、なめらかに合わせる */
+  overflow: hidden;
+  touch-action: pan-y;            /* 縦スクロールはブラウザに任せ、横の動きはアプリで扱う */
+  transition: height 0.25s ease;  /* タブごとに高さが違うので、止まったあとになめらかに合わせる */
 }
 
-.home-pager::-webkit-scrollbar {
-  display: none;
+/* 帯：3つのタブを横に並べたもの。transform で左右に動かす */
+.home-track {
+  display: flex;
+  align-items: flex-start;
+  will-change: transform;
+}
+
+/* 指を離したあと、止めるタブまで送る動き（0.3秒） */
+.home-track.is-animating,
+.segment-indicator.is-animating {
+  transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 .home-panel {
   flex: 0 0 100%;
   min-width: 0;
   padding: 0 16px; /* 広げた分、中身は元の位置に戻す */
-  scroll-snap-align: start;
-  scroll-snap-stop: always; /* 勢いよくはじいても、1つずつ止まる */
 }
 
 /* 動物のシルエット（色は文字と同じ） */
