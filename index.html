@@ -150,11 +150,14 @@
         <select id="input-part"></select>
       </label>
 
-      <!-- 種目（部位によって選択肢が変わる） -->
-      <label class="field">
-        <span class="field-label">種目</span>
-        <select id="input-exercise"></select>
-      </label>
+      <!-- 種目（部位によって選択肢が変わる）。右に小さな「自己ベスト」ボタン -->
+      <div class="field">
+        <div class="field-head">
+          <span class="field-label">種目</span>
+          <button type="button" id="btn-best" class="best-btn">自己ベスト</button>
+        </div>
+        <select id="input-exercise" aria-label="種目"></select>
+      </div>
 
       <!-- 種目の追加（種目で「＋ 新しい種目を入力」を選んだときだけ表示） -->
       <div id="add-exercise" class="add-exercise" hidden>
@@ -237,6 +240,18 @@
       <p id="pb-animal-text" class="pb-animal-text"></p>
       <p id="pb-detail" class="pb-detail"></p>
       <button type="button" id="pb-ok" class="btn btn-main">OK</button>
+    </div>
+  </div>
+
+  <!-- ===== 自己ベストのポップアップ（選んでいる種目の自己ベスト・更新の目標・前回のメイン） =====
+       ✕ボタン、またはポップアップの外側を触ると閉じる -->
+  <div id="best-modal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="best-title">
+    <div class="modal-box best-box">
+      <div class="best-head">
+        <h2 id="best-title" class="modal-title"></h2>
+        <button type="button" id="best-close" class="best-close" aria-label="閉じる">✕</button>
+      </div>
+      <div id="best-body"></div>
     </div>
   </div>
 

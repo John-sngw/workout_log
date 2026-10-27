@@ -164,6 +164,30 @@ select:focus {
   display: none;
 }
 
+/* 「種目」の見出しと、右の「自己ベスト」ボタンを横に並べる */
+.field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.field-head .field-label {
+  margin-bottom: 0;
+}
+
+/* 小さな「自己ベスト」ボタン */
+.best-btn {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: none;
+  border: 1px solid var(--accent);
+  border-radius: 13px;
+}
+
 /* アップ／メインの切り替え */
 .type-toggle {
   display: flex;
@@ -1110,6 +1134,83 @@ select:focus {
   margin: 6px 0 16px;
   font-size: 14px;
   color: var(--sub-text);
+}
+
+/* ===== 自己ベストのポップアップ ===== */
+.best-box {
+  padding: 16px;
+}
+
+.best-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+/* 右上の ✕ ボタン */
+.best-close {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--sub-text);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* 「自己ベスト」「更新するには」「前回のメイン」の各区切り */
+.best-section {
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-top: 8px;
+}
+
+.best-label {
+  font-size: 12px;
+  color: var(--sub-text);
+  margin: 0 0 2px;
+}
+
+/* 自己ベストのセット（いちばん大きく） */
+.best-set-big {
+  font-size: 26px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.best-meta {
+  font-size: 13px;
+  color: var(--sub-text);
+  margin: 2px 0 0;
+}
+
+.best-goal {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--accent);
+  margin: 2px 0 0;
+}
+
+.best-goal small {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--sub-text);
+}
+
+.best-row {
+  font-size: 16px;
+  margin: 2px 0 0;
+}
+
+.best-empty {
+  font-size: 14px;
+  color: var(--sub-text);
+  margin: 8px 0 4px;
 }
 
 /* ===== 今週の予定を登録するメッセージ ===== */
