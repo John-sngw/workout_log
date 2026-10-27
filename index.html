@@ -232,8 +232,18 @@
     </div>
   </div>
 
-  <!-- ===== 登録したときの通知（数秒で消える） ===== -->
-  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <!-- ===== 登録したときの通知（iPhoneの通知のような見た目。ふわっと出て、ふわっと消える） ===== -->
+  <div id="toast" class="toast" role="status" aria-live="polite">
+    <!-- 左：緑の丸にチェックマーク -->
+    <svg class="toast-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="12"/>
+      <path d="M7 12.5l3.2 3.2L17 9" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <div class="toast-text">
+      <p id="toast-title" class="toast-title"></p>
+      <p id="toast-detail" class="toast-detail"></p>
+    </div>
+  </div>
 
   <nav class="tab-bar">
     <button type="button" class="tab" data-screen="home">

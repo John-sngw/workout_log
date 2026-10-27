@@ -46,6 +46,8 @@ const listTitle = document.getElementById("list-title");
 const recordList = document.getElementById("record-list");
 const listEmpty = document.getElementById("list-empty");
 const toast = document.getElementById("toast");
+const toastTitle = document.getElementById("toast-title");
+const toastDetail = document.getElementById("toast-detail");
 const historyList = document.getElementById("history-list");
 const historyEmpty = document.getElementById("history-empty");
 const calTitle = document.getElementById("cal-title");
@@ -367,8 +369,8 @@ function handleSubmit(event) {
   if (isNew) celebrateIfBest(data, before);
 }
 
-// 登録したときの通知の文（1行目：登録した内容／2行目：セット数）
-// 例：「ベンチプレス 60kg × 10回を登録しました」「メイン 3セット目」
+// 登録したときの通知の文（1行目：種目とセット数／2行目：登録した内容）
+// 例：「ベンチプレス　メイン 3セット目」「60kg × 10回を登録しました」
 // セット数は、その日のその種目の合計（重量が違っても、間に別の種目が入っても数える）
 // メインとアップは別々に数える
 function registeredText(data, records) {
@@ -383,24 +385,20 @@ function registeredText(data, records) {
     .reduce((sum, r) => sum + r.sets, 0);
   const weightText = data.weight === 0 ? "自重" : `${data.weight}kg`;
   const typeText = isWarmup(data) ? "アップ" : "メイン";
-  return [`${data.exercise} ${weightText} × ${data.reps}回を登録しました`, `${typeText} ${count}セット目`];
+  return [`${data.exercise}　${typeText} ${count}セット目`, `${weightText} × ${data.reps}回を登録しました`];
 }
 
-// 画面の下に、短い通知を数秒だけ出す（sub：2行目に太字で出す文。なくてもよい）
+// 画面の下に、短い通知を出す（title：太字の見出し／detail：薄い文字の説明）
+// ふわっと出て（0.35秒）、3秒表示したあと、ふわっと消える（0.5秒）
 let toastTimer = null;
-function showToast(message, sub) {
-  toast.textContent = message;
-  if (sub) {
-    const strong = document.createElement("strong");
-    strong.className = "toast-sub";
-    strong.textContent = sub;
-    toast.appendChild(strong);
-  }
-  toast.hidden = false;
+function showToast(title, detail) {
+  toastTitle.textContent = title;
+  toastDetail.textContent = detail || "";
+  toast.classList.add("is-visible");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => {
-    toast.hidden = true;
-  }, 2500);
+    toast.classList.remove("is-visible");
+  }, 3000);
 }
 
 // 重量・回数・セット・メモを空にする
