@@ -1744,74 +1744,139 @@ const HOME_PANELS = ["week", "rank", "part"];
 const homePager = document.getElementById("home-pager");
 const segmentIndicator = document.getElementById("segment-indicator");
 
-// 横スクロールの1タブ分の幅（＝横スクロールの入れ物の幅）
-function pagerStep() {
+const homeTrack = document.getElementById("home-track");
+
+// いま表示しているタブの番号（0=今週、1=ランキング、2=種目別）
+let homeIndex = 0;
+// 送りの動きが終わったあとの処理を予約するタイマー
+let homeAnimTimer = null;
+
+// 指の動きの記録（スワイプ中だけ使う）
+const drag = {
+  active: false,  // 指が触れているか
+  dir: null,      // 動かし始めの向き："x"（横）／"y"（縦）／null（まだ決まっていない）
+  startX: 0,
+  startY: 0,
+  dx: 0,          // 横に動いた距離
+  history: [],    // 直近の指の位置と時刻（はじいた速さを出すため）
+};
+
+// 1タブ分の幅（＝見える窓の幅）
+function pagerWidth() {
   return homePager.clientWidth;
 }
 
-// 指が画面に触れているか（触れている間は、位置の調整をしない）
-let pagerTouching = false;
-// 指が触れたときのスクロール位置（どちらに動かしたかを判定するため）
-let pagerStartLeft = 0;
-// 指を離したあとに止めるタブの番号（決まっていなければ null）
-let pagerTarget = null;
-// スクロールが止まったかを判定するためのタイマー
-let pagerSettleTimer = null;
-
-// 上の選択中の印とボタンの色を、スクロールの位置に合わせる（指の動きにそのまま追従）
-function updateSegmentIndicator() {
-  const step = pagerStep();
-  if (step === 0) return; // ホームが表示されていないとき（幅が0）は何もしない
-  const progress = Math.min(Math.max(homePager.scrollLeft / step, 0), HOME_PANELS.length - 1);
-  segmentIndicator.style.transform = `translateX(${progress * 100}%)`;
-  const index = Math.round(progress);
+// 帯の位置と、上の選択中の印を動かす
+// position：タブの番号を小数で表した位置（例：0.5 は「今週」と「ランキング」のちょうど中間）
+// animate：true なら0.3秒かけて動かす、false なら指に合わせてすぐ動かす
+function setPagerPosition(position, animate) {
+  homeTrack.classList.toggle("is-animating", animate);
+  segmentIndicator.classList.toggle("is-animating", animate);
+  homeTrack.style.transform = `translateX(${-position * pagerWidth()}px)`;
+  const clamped = Math.min(Math.max(position, 0), HOME_PANELS.length - 1);
+  segmentIndicator.style.transform = `translateX(${clamped * 100}%)`;
+  const index = Math.round(clamped);
   document.querySelectorAll(".segment-btn").forEach((b, i) => {
     b.classList.toggle("is-active", i === index);
   });
 }
 
-// 表示しているタブの高さに、入れ物の高さを合わせる（下に余白が出ないように）
-// ※スクロールの途中で高さを変えると、iPhoneでは吸着が止まってしまうので、止まってから呼ぶ
+// 表示しているタブの高さに、窓の高さを合わせる（下に余白が出ないように）
 function fitPagerHeight() {
-  const step = pagerStep();
-  if (step === 0) return;
-  const index = Math.round(homePager.scrollLeft / step);
-  const panel = document.getElementById(`panel-${HOME_PANELS[index]}`);
+  const panel = document.getElementById(`panel-${HOME_PANELS[homeIndex]}`);
   if (panel) homePager.style.height = `${panel.offsetHeight}px`;
 }
 
-// スクロールが止まったら：タブの位置からずれていれば、止めるタブまでなめらかに動かす
-// ぴったりタブの位置に止まっていれば、高さを合わせて終わり
-function settlePager() {
-  if (pagerTouching) return;
-  const step = pagerStep();
-  if (step === 0) return;
-  const index = pagerTarget !== null ? pagerTarget : Math.round(homePager.scrollLeft / step);
-  const left = index * step;
-  if (Math.abs(homePager.scrollLeft - left) > 1) {
-    homePager.scrollTo({ left: left, behavior: "smooth" });
-    return; // 動き終わると、もう一度ここに来る
-  }
-  pagerTarget = null;
+// 指定したタブへ移る（0.3秒の送りの動き → 止まったら高さを合わせる）
+function goToHomePanel(index) {
+  homeIndex = Math.min(Math.max(index, 0), HOME_PANELS.length - 1);
+  setPagerPosition(homeIndex, true);
+  clearTimeout(homeAnimTimer);
+  homeAnimTimer = setTimeout(() => {
+    homeTrack.classList.remove("is-animating");
+    segmentIndicator.classList.remove("is-animating");
+    fitPagerHeight();
+  }, 320);
+}
+
+// 位置と高さを今のタブに合わせ直す（ホームを表示したとき・画面の幅や中身の高さが変わったとき）
+function syncHomePager() {
+  if (pagerWidth() === 0 || drag.active) return; // 非表示のときと、スワイプ中は何もしない
+  setPagerPosition(homeIndex, false);
   fitPagerHeight();
 }
 
-// スクロールが一定時間（0.12秒）止まったら settlePager を呼ぶ
-function scheduleSettle() {
-  clearTimeout(pagerSettleTimer);
-  pagerSettleTimer = setTimeout(settlePager, 120);
-}
-
-// 位置・印・高さをまとめて合わせる（ホームを表示したときや、中身の高さが変わったとき）
-function syncHomePager() {
-  updateSegmentIndicator();
-  if (!pagerTouching) scheduleSettle();
-}
-
-// ボタンを押したときなどに、指定したタブまで横にスクロールする
+// ボタンを押したときなどに、指定したタブへ移る
 function showHomePanel(name) {
-  pagerTarget = HOME_PANELS.indexOf(name);
-  homePager.scrollTo({ left: pagerTarget * pagerStep(), behavior: "smooth" });
+  goToHomePanel(HOME_PANELS.indexOf(name));
+}
+
+// --- スワイプ（指の動き） ---
+
+function onPagerTouchStart(event) {
+  const touch = event.touches[0];
+  // 2本指の操作と、画面の端（Safariの「戻る」操作）から始まった動きは扱わない
+  if (event.touches.length !== 1 || touch.clientX < 16 || touch.clientX > window.innerWidth - 16) {
+    drag.active = false;
+    return;
+  }
+  drag.active = true;
+  drag.dir = null;
+  drag.startX = touch.clientX;
+  drag.startY = touch.clientY;
+  drag.dx = 0;
+  drag.history = [{ x: touch.clientX, t: event.timeStamp }];
+  clearTimeout(homeAnimTimer);
+}
+
+function onPagerTouchMove(event) {
+  if (!drag.active) return;
+  const touch = event.touches[0];
+  const dx = touch.clientX - drag.startX;
+  const dy = touch.clientY - drag.startY;
+
+  // 動かし始め（8px）で、横の操作か縦の操作かを決める
+  if (drag.dir === null) {
+    if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+    drag.dir = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+    // 横に動かし始めたら、中身の高さで切れないように、窓の高さの固定をいったん外す
+    if (drag.dir === "x") homePager.style.height = "";
+  }
+  if (drag.dir !== "x") return; // 縦の操作は、ふつうの縦スクロールに任せる
+
+  event.preventDefault(); // 横に動かしている間は、画面が縦に動かないようにする
+  // 端のタブでさらに引っ張ったときは、少しだけ動く（引っ張りの手応え）
+  const atEdge = (homeIndex === 0 && dx > 0) || (homeIndex === HOME_PANELS.length - 1 && dx < 0);
+  drag.dx = atEdge ? dx * 0.3 : dx;
+  setPagerPosition(homeIndex - drag.dx / pagerWidth(), false);
+
+  // はじいた速さを出すため、直近0.1秒の指の位置を残す
+  drag.history.push({ x: touch.clientX, t: event.timeStamp });
+  while (drag.history.length > 2 && event.timeStamp - drag.history[0].t > 100) drag.history.shift();
+}
+
+function onPagerTouchEnd(event) {
+  if (!drag.active) return;
+  drag.active = false;
+  if (drag.dir !== "x") {
+    fitPagerHeight();
+    return;
+  }
+
+  // はじいた速さ（px/ミリ秒。右向きがプラス）
+  const first = drag.history[0];
+  const last = drag.history[drag.history.length - 1];
+  const dt = last.t - first.t;
+  const velocity = dt > 0 ? (last.x - first.x) / dt : 0;
+
+  // 次のどちらかなら、隣のタブへ移る。どちらでもなければ元のタブに戻る
+  // ・タブ幅の15%以上動かした
+  // ・速くはじいた（0.3px/ミリ秒以上）
+  let next = homeIndex;
+  const moved = drag.dx / pagerWidth();
+  if (moved < -0.15 || velocity < -0.3) next = homeIndex + 1; // 左へ動かした → 右隣のタブ
+  if (moved > 0.15 || velocity > 0.3) next = homeIndex - 1;   // 右へ動かした → 左隣のタブ
+  goToHomePanel(next);
 }
 
 function setupHomeTabs() {
@@ -1819,39 +1884,16 @@ function setupHomeTabs() {
     button.addEventListener("click", () => showHomePanel(button.dataset.panel));
   });
 
-  // 指が触れたとき：位置を覚えておく
-  homePager.addEventListener("touchstart", () => {
-    pagerTouching = true;
-    pagerTarget = null;
-    pagerStartLeft = homePager.scrollLeft;
-    clearTimeout(pagerSettleTimer);
-  }, { passive: true });
-
-  // 指を離したとき：どのタブに止めるかを決める
-  // タブ幅の15%以上動かしていれば、その方向の隣のタブ。それより小さければ元のタブ
-  const onTouchEnd = () => {
-    pagerTouching = false;
-    const step = pagerStep();
-    if (step === 0) return;
-    const start = Math.round(pagerStartLeft / step);
-    const moved = homePager.scrollLeft - pagerStartLeft;
-    let target = start;
-    if (moved > step * 0.15) target = start + 1;
-    if (moved < -step * 0.15) target = start - 1;
-    pagerTarget = Math.min(Math.max(target, 0), HOME_PANELS.length - 1);
-    scheduleSettle();
-  };
-  homePager.addEventListener("touchend", onTouchEnd, { passive: true });
-  homePager.addEventListener("touchcancel", onTouchEnd, { passive: true });
-
-  // スクロール中：上の印を指に追従させ、止まったら位置を整える
-  homePager.addEventListener("scroll", () => {
-    updateSegmentIndicator();
-    if (!pagerTouching) scheduleSettle();
-  }, { passive: true });
+  homePager.addEventListener("touchstart", onPagerTouchStart, { passive: true });
+  // 横の操作のときに画面の縦の動きを止めるため、passive: false にする
+  homePager.addEventListener("touchmove", onPagerTouchMove, { passive: false });
+  homePager.addEventListener("touchend", onPagerTouchEnd, { passive: true });
+  homePager.addEventListener("touchcancel", onPagerTouchEnd, { passive: true });
 
   // 種目別を開いた・記録が増えたなどで中身の高さが変わったら、高さを合わせ直す
-  const observer = new ResizeObserver(syncHomePager);
+  const observer = new ResizeObserver(() => {
+    if (!drag.active && !homeTrack.classList.contains("is-animating")) fitPagerHeight();
+  });
   document.querySelectorAll(".home-panel").forEach((panel) => observer.observe(panel));
   window.addEventListener("resize", syncHomePager);
 }
