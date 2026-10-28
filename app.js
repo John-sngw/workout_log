@@ -1874,13 +1874,16 @@ const timerState = document.getElementById("timer-state");
 const timerRingBar = document.getElementById("timer-ring-bar");
 const timerStartBtn = document.getElementById("timer-start");
 const timerPlusBtn = document.getElementById("timer-plus");
-const timerPresetBtns = document.querySelectorAll("#timer-presets button");
+const timerMinusBtn = document.getElementById("timer-minus");
 
 const TIMER_RING_LENGTH = 339.3;     // 輪の長さ（2 × 3.14 × 54）
 const TIMER_DONE_KEEP = 5 * 60000;   // 「終了」の表示を残す時間（5分たったら待機に戻す）
+const TIMER_STEP = 15;               // −15秒／＋15秒で変える秒数
+const TIMER_MIN = 15;                // 設定できる最短の時間（秒）
+const TIMER_MAX = 600;               // 設定できる最長の時間（秒。10分）
 
 let timerTick = null;       // 残り時間を更新するための繰り返しのタイマー
-let timerTotal = 0;         // 今回の休憩の長さ（ミリ秒。+30秒で延ばした分も含む。輪の計算に使う）
+let timerTotal = 0;         // 今回の休憩の長さ（ミリ秒。＋15秒／−15秒で変えた分も含む。輪の計算に使う）
 let timerBeeped = false;    // 終了の音を鳴らしたか（1回だけ鳴らす）
 let timerDoneTimer = null;  // 「終了」の表示を5分後に待機へ戻すためのタイマー
 let audioContext = null;    // 音を鳴らすための仕組み（iPhoneでは、ボタンを押したときに準備する必要がある）
@@ -1926,10 +1929,10 @@ function renderTimer() {
   const ratio = running ? Math.min(remain * 1000 / total, 1) : done ? 0 : 1; // 輪の残りの割合
   timerRingBar.style.strokeDashoffset = `${TIMER_RING_LENGTH * (1 - ratio)}`;
   timerStartBtn.textContent = running ? "停止" : done ? "もう一度" : "開始";
-  timerPresetBtns.forEach((b) => {
-    b.classList.toggle("is-selected", Number(b.dataset.sec) === t.duration);
-    b.disabled = running; // 動いている間は休憩時間を変えられない
-  });
+  // 開始前は、最短・最長に達したらボタンを押せなくする（動いている間・終了後はいつでも押せる）
+  const waiting = !running && !done;
+  timerMinusBtn.disabled = waiting && t.duration <= TIMER_MIN;
+  timerPlusBtn.disabled = waiting && t.duration >= TIMER_MAX;
 
   // 時間になった瞬間に、1回だけ音を鳴らす
   if (done && !timerBeeped) {
@@ -1963,23 +1966,26 @@ function toggleTimer() {
   renderTimer();
 }
 
-// 「+30秒」：動いている間は残り時間を延ばす。止まっている間は休憩時間を30秒延ばす
-function plusTimer() {
+// 「−15秒」「＋15秒」（sign は −1 か 1）
+// ・動いている間：残り時間だけを変える（設定時間は変えない）。残りが0以下になったら、その場で終了
+// ・開始前・終了後：設定時間を変える（次から使う時間として覚えておく）
+function adjustTimer(sign) {
   const t = loadTimer();
-  const running = t.endAt !== null && t.endAt > Date.now();
+  const now = Date.now();
+  const running = t.endAt !== null && t.endAt > now;
   if (running) {
-    timerTotal += 30000;
-    save(KEY_TIMER, { endAt: t.endAt + 30000, duration: t.duration });
+    const remain = t.endAt - now;
+    const next = Math.min(remain + sign * TIMER_STEP * 1000, TIMER_MAX * 1000); // 残りも最長10分まで
+    if (next <= 0) {
+      save(KEY_TIMER, { endAt: now, duration: t.duration }); // 残りがなくなったので終了（音も鳴る）
+    } else {
+      timerTotal = Math.max(timerTotal + (next - remain), next); // 輪の長さも合わせて変える
+      save(KEY_TIMER, { endAt: now + next, duration: t.duration });
+    }
   } else {
-    save(KEY_TIMER, { endAt: null, duration: Math.min(t.duration + 30, 600) }); // 最長10分
+    const duration = Math.min(Math.max(t.duration + sign * TIMER_STEP, TIMER_MIN), TIMER_MAX);
+    save(KEY_TIMER, { endAt: null, duration }); // 終了後に押したときは、待機に戻す
   }
-  renderTimer();
-}
-
-// 休憩時間を選ぶ（次から使う時間として覚えておく）
-function selectTimerDuration(sec) {
-  const t = loadTimer();
-  save(KEY_TIMER, { endAt: t.endAt && t.endAt <= Date.now() ? null : t.endAt, duration: sec });
   renderTimer();
 }
 
@@ -2039,8 +2045,8 @@ function setupTimer() {
     if (event.target === timerModal) closeTimerModal(); // ポップアップの外側（暗い部分）を触ったら閉じる
   });
   timerStartBtn.addEventListener("click", toggleTimer);
-  timerPlusBtn.addEventListener("click", plusTimer);
-  timerPresetBtns.forEach((b) => b.addEventListener("click", () => selectTimerDuration(Number(b.dataset.sec))));
+  timerPlusBtn.addEventListener("click", () => adjustTimer(1));
+  timerMinusBtn.addEventListener("click", () => adjustTimer(-1));
   // アプリに戻ってきたとき（画面のロックを解除したときなど）に、残り時間をすぐ更新する
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") renderTimer();

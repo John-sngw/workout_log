@@ -267,17 +267,12 @@
           <p id="timer-state" class="timer-state">待機中</p>
         </div>
       </div>
-      <!-- 休憩時間の選択（動いている間は選べない） -->
-      <div id="timer-presets" class="timer-presets">
-        <button type="button" data-sec="60">1:00</button>
-        <button type="button" data-sec="90">1:30</button>
-        <button type="button" data-sec="120">2:00</button>
-        <button type="button" data-sec="180">3:00</button>
+      <!-- 時間の調整（開始前は設定時間、動いている間は残り時間を変える） -->
+      <div class="timer-adjust">
+        <button type="button" id="timer-minus" class="btn btn-sub">−15秒</button>
+        <button type="button" id="timer-plus" class="btn btn-sub">＋15秒</button>
       </div>
-      <div class="timer-actions">
-        <button type="button" id="timer-plus" class="btn btn-sub">+30秒</button>
-        <button type="button" id="timer-start" class="btn btn-main">開始</button>
-      </div>
+      <button type="button" id="timer-start" class="btn btn-main timer-start">開始</button>
     </div>
   </div>
 
