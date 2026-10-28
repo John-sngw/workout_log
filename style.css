@@ -1160,6 +1160,142 @@ select:focus {
   color: var(--sub-text);
 }
 
+/* ===== 休憩タイマー ===== */
+/* 右上に固定したボタン（スクロールしても同じ場所。すりガラスの背景） */
+.timer-btn {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 10px);
+  right: 12px;
+  z-index: 6; /* 画面の中身より手前、ポップアップより後ろ */
+  min-width: 72px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 16px;
+  border: 0.5px solid var(--border);
+  background: color-mix(in srgb, var(--card) 80%, transparent);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums; /* 残り時間の数字の幅を揃える */
+}
+
+/* 動いている間：オレンジの地に残り時間 */
+.timer-btn.is-running {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+/* 時間になったら：緑の「終了」 */
+.timer-btn.is-done {
+  background: #34c759;
+  border-color: #34c759;
+  color: #ffffff;
+}
+
+.timer-box {
+  padding: 16px;
+}
+
+/* 残り時間と輪 */
+.timer-face {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  margin: 4px auto 12px;
+}
+
+.timer-ring {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg); /* 輪を真上から減らす */
+}
+
+.timer-ring-bg,
+.timer-ring-bar {
+  fill: none;
+  stroke-width: 8;
+}
+
+.timer-ring-bg {
+  stroke: var(--bg);
+}
+
+.timer-ring-bar {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  stroke-dasharray: 339.3; /* 輪の長さ（2 × 3.14 × 54） */
+  transition: stroke-dashoffset 0.25s linear;
+}
+
+.timer-modal-done .timer-ring-bar {
+  stroke: #34c759;
+}
+
+.timer-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.timer-time {
+  margin: 0;
+  font-size: 48px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.timer-state {
+  margin: 0;
+  font-size: 13px;
+  color: var(--sub-text);
+}
+
+/* 休憩時間の選択 */
+.timer-presets {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.timer-presets button {
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.timer-presets button.is-selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.timer-presets button:disabled {
+  opacity: 0.4;
+}
+
+.timer-actions {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 8px;
+}
+
+.timer-actions .btn {
+  width: 100%;
+  margin: 0;
+}
+
 /* ===== 自己ベストのポップアップ ===== */
 .best-box {
   padding: 16px;
