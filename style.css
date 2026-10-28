@@ -1161,10 +1161,12 @@ select:focus {
 }
 
 /* ===== 休憩タイマー ===== */
-/* 右上に固定したボタン（スクロールしても同じ場所。すりガラスの背景） */
+/* 右上に固定したボタン（スクロールしても同じ場所） */
 .timer-btn {
   position: fixed;
-  top: calc(env(safe-area-inset-top) + 10px);
+  /* 画面の見出し（「記録する」など）の文字と高さをそろえる。
+     時計のすぐ下はiPhoneが表示をぼかすため、そこから離す */
+  top: calc(env(safe-area-inset-top) + 21px);
   right: 12px;
   z-index: 6; /* 画面の中身より手前、ポップアップより後ろ */
   min-width: 72px;
