@@ -245,6 +245,42 @@
 
   <!-- ===== 自己ベストのポップアップ（選んでいる種目の自己ベスト・更新の目標・前回のメイン） =====
        ✕ボタン、またはポップアップの外側を触ると閉じる -->
+  <!-- ===== 休憩タイマー =====
+       右上に固定したボタン。押すとポップアップでタイマーを出す
+       動いている間は、ボタンに残り時間を表示する（ポップアップを閉じても、どの画面でも見える） -->
+  <button type="button" id="timer-btn" class="timer-btn">タイマー</button>
+
+  <div id="timer-modal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="timer-title">
+    <div class="modal-box timer-box">
+      <div class="best-head">
+        <h2 id="timer-title" class="modal-title">休憩タイマー</h2>
+        <button type="button" id="timer-close" class="best-close" aria-label="閉じる">✕</button>
+      </div>
+      <!-- 残り時間と、減っていく輪 -->
+      <div class="timer-face">
+        <svg class="timer-ring" viewBox="0 0 120 120" aria-hidden="true">
+          <circle class="timer-ring-bg" cx="60" cy="60" r="54"/>
+          <circle id="timer-ring-bar" class="timer-ring-bar" cx="60" cy="60" r="54"/>
+        </svg>
+        <div class="timer-center">
+          <p id="timer-time" class="timer-time">1:30</p>
+          <p id="timer-state" class="timer-state">待機中</p>
+        </div>
+      </div>
+      <!-- 休憩時間の選択（動いている間は選べない） -->
+      <div id="timer-presets" class="timer-presets">
+        <button type="button" data-sec="60">1:00</button>
+        <button type="button" data-sec="90">1:30</button>
+        <button type="button" data-sec="120">2:00</button>
+        <button type="button" data-sec="180">3:00</button>
+      </div>
+      <div class="timer-actions">
+        <button type="button" id="timer-plus" class="btn btn-sub">+30秒</button>
+        <button type="button" id="timer-start" class="btn btn-main">開始</button>
+      </div>
+    </div>
+  </div>
+
   <div id="best-modal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="best-title">
     <div class="modal-box best-box">
       <div class="best-head">

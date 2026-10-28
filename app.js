@@ -8,6 +8,7 @@ const KEY_CUSTOM = "workout_custom_exercises";     // 追加した種目の配�
 const KEY_SETTINGS = "workout_settings";           // 設定（週ごとの行く曜日）
 const KEY_DELETED = "workout_deleted_ids";         // 削除した記録のidの配列（復元で生き返らせないため）
 const KEY_BACKUP_INFO = "workout_backup_info";     // 前回のバックアップ日 { lastBackup: "YYYY-MM-DD" }
+const KEY_TIMER = "workout_timer";                 // 休憩タイマー { endAt: 終了する時刻（ミリ秒）または null, duration: 休憩時間（秒） }
 
 // バックアップを何日しなかったら知らせるか
 const BACKUP_REMIND_DAYS = 14;
@@ -1859,6 +1860,195 @@ function closeBestModal() {
 }
 
 // =============================================
+// 休憩タイマー
+// =============================================
+// ・右上のボタンを押すとポップアップで開く。✕ かポップアップの外側で閉じる（閉じてもタイマーは止まらない）
+// ・残り時間は「終了する時刻 − 今の時刻」で計算する（アプリを開き直しても、正しい残り時間を出せる）
+// ・動いている間は、右上のボタンに残り時間を出す。時間になったら緑の「終了」にして、短い音を鳴らす
+// ・iPhoneのWebページなので、画面がロックされている間や別のアプリを見ている間は、音で知らせられない
+
+const timerBtn = document.getElementById("timer-btn");
+const timerModal = document.getElementById("timer-modal");
+const timerTime = document.getElementById("timer-time");
+const timerState = document.getElementById("timer-state");
+const timerRingBar = document.getElementById("timer-ring-bar");
+const timerStartBtn = document.getElementById("timer-start");
+const timerPlusBtn = document.getElementById("timer-plus");
+const timerPresetBtns = document.querySelectorAll("#timer-presets button");
+
+const TIMER_RING_LENGTH = 339.3;     // 輪の長さ（2 × 3.14 × 54）
+const TIMER_DONE_KEEP = 5 * 60000;   // 「終了」の表示を残す時間（5分たったら待機に戻す）
+
+let timerTick = null;       // 残り時間を更新するための繰り返しのタイマー
+let timerTotal = 0;         // 今回の休憩の長さ（ミリ秒。+30秒で延ばした分も含む。輪の計算に使う）
+let timerBeeped = false;    // 終了の音を鳴らしたか（1回だけ鳴らす）
+let timerDoneTimer = null;  // 「終了」の表示を5分後に待機へ戻すためのタイマー
+let audioContext = null;    // 音を鳴らすための仕組み（iPhoneでは、ボタンを押したときに準備する必要がある）
+
+// 保存しているタイマーの状態（なければ初期値：止まっている・1分30秒）
+function loadTimer() {
+  const t = load(KEY_TIMER, {});
+  return { endAt: typeof t.endAt === "number" ? t.endAt : null, duration: t.duration || 90 };
+}
+
+// 秒を「1:30」の形にする
+function formatTimer(sec) {
+  const s = Math.max(0, Math.ceil(sec));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+// 今の状態に合わせて、右上のボタンとポップアップの表示を作り直す
+function renderTimer() {
+  const t = loadTimer();
+  const now = Date.now();
+  const running = t.endAt !== null && t.endAt > now;
+  const done = t.endAt !== null && t.endAt <= now;
+
+  // 終わってから5分たったら、待機に戻す
+  if (done && now - t.endAt > TIMER_DONE_KEEP) {
+    save(KEY_TIMER, { endAt: null, duration: t.duration });
+    renderTimer();
+    return;
+  }
+
+  const remain = running ? (t.endAt - now) / 1000 : 0;
+
+  // 右上のボタン
+  timerBtn.classList.toggle("is-running", running);
+  timerBtn.classList.toggle("is-done", done);
+  timerBtn.textContent = running ? formatTimer(remain) : done ? "終了" : "タイマー";
+
+  // ポップアップ
+  timerModal.classList.toggle("timer-modal-done", done);
+  timerTime.textContent = running ? formatTimer(remain) : done ? "0:00" : formatTimer(t.duration);
+  timerState.textContent = running ? "休憩中" : done ? "休憩終了　次のセットへ" : "待機中";
+  const total = timerTotal || t.duration * 1000;
+  const ratio = running ? Math.min(remain * 1000 / total, 1) : done ? 0 : 1; // 輪の残りの割合
+  timerRingBar.style.strokeDashoffset = `${TIMER_RING_LENGTH * (1 - ratio)}`;
+  timerStartBtn.textContent = running ? "停止" : done ? "もう一度" : "開始";
+  timerPresetBtns.forEach((b) => {
+    b.classList.toggle("is-selected", Number(b.dataset.sec) === t.duration);
+    b.disabled = running; // 動いている間は休憩時間を変えられない
+  });
+
+  // 時間になった瞬間に、1回だけ音を鳴らす
+  if (done && !timerBeeped) {
+    timerBeeped = true;
+    playBeep();
+  }
+  // 「終了」の表示は、5分たったら自動で待機に戻す
+  clearTimeout(timerDoneTimer);
+  if (done) timerDoneTimer = setTimeout(renderTimer, TIMER_DONE_KEEP - (now - t.endAt) + 50);
+
+  // 動いている間だけ、0.25秒ごとに表示を更新する
+  if (running && !timerTick) timerTick = setInterval(renderTimer, 250);
+  if (!running && timerTick) {
+    clearInterval(timerTick);
+    timerTick = null;
+  }
+}
+
+// 「開始」「停止」「もう一度」ボタン
+function toggleTimer() {
+  prepareAudio(); // iPhoneでは、ボタンを押したときに音の準備をしておく必要がある
+  const t = loadTimer();
+  const running = t.endAt !== null && t.endAt > Date.now();
+  if (running) {
+    save(KEY_TIMER, { endAt: null, duration: t.duration }); // 停止
+  } else {
+    timerTotal = t.duration * 1000;
+    timerBeeped = false;
+    save(KEY_TIMER, { endAt: Date.now() + timerTotal, duration: t.duration }); // 開始
+  }
+  renderTimer();
+}
+
+// 「+30秒」：動いている間は残り時間を延ばす。止まっている間は休憩時間を30秒延ばす
+function plusTimer() {
+  const t = loadTimer();
+  const running = t.endAt !== null && t.endAt > Date.now();
+  if (running) {
+    timerTotal += 30000;
+    save(KEY_TIMER, { endAt: t.endAt + 30000, duration: t.duration });
+  } else {
+    save(KEY_TIMER, { endAt: null, duration: Math.min(t.duration + 30, 600) }); // 最長10分
+  }
+  renderTimer();
+}
+
+// 休憩時間を選ぶ（次から使う時間として覚えておく）
+function selectTimerDuration(sec) {
+  const t = loadTimer();
+  save(KEY_TIMER, { endAt: t.endAt && t.endAt <= Date.now() ? null : t.endAt, duration: sec });
+  renderTimer();
+}
+
+// 音を鳴らす準備（ボタンを押したときに呼ぶ）
+function prepareAudio() {
+  try {
+    if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioContext.state === "suspended") audioContext.resume();
+  } catch (e) {
+    audioContext = null; // 音が使えない環境では鳴らさない
+  }
+}
+
+// 短い音を3回鳴らす（ピッ・ピッ・ピー）
+function playBeep() {
+  if (!audioContext) return;
+  try {
+    [0, 0.25, 0.5].forEach((delay, i) => {
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      osc.frequency.value = 880;
+      const start = audioContext.currentTime + delay;
+      const length = i === 2 ? 0.4 : 0.15;
+      gain.gain.setValueAtTime(0.25, start);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + length);
+      osc.connect(gain).connect(audioContext.destination);
+      osc.start(start);
+      osc.stop(start + length);
+    });
+  } catch (e) {
+    // 音が鳴らせなくても、表示だけで知らせる
+  }
+}
+
+function openTimerModal() {
+  prepareAudio();
+  renderTimer();
+  timerModal.hidden = false;
+  document.body.classList.add("modal-open");
+}
+
+function closeTimerModal() {
+  timerModal.hidden = true;
+  document.body.classList.remove("modal-open");
+}
+
+function setupTimer() {
+  // 開き直したときに、動いていたタイマーの続きから表示する
+  const t = loadTimer();
+  if (t.endAt !== null) {
+    timerTotal = t.duration * 1000;
+    timerBeeped = t.endAt <= Date.now(); // すでに終わっていたら、開き直したときに音は鳴らさない
+  }
+  timerBtn.addEventListener("click", openTimerModal);
+  document.getElementById("timer-close").addEventListener("click", closeTimerModal);
+  timerModal.addEventListener("click", (event) => {
+    if (event.target === timerModal) closeTimerModal(); // ポップアップの外側（暗い部分）を触ったら閉じる
+  });
+  timerStartBtn.addEventListener("click", toggleTimer);
+  timerPlusBtn.addEventListener("click", plusTimer);
+  timerPresetBtns.forEach((b) => b.addEventListener("click", () => selectTimerDuration(Number(b.dataset.sec))));
+  // アプリに戻ってきたとき（画面のロックを解除したときなど）に、残り時間をすぐ更新する
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") renderTimer();
+  });
+  renderTimer();
+}
+
+// =============================================
 // ホームの中のタブ（今週／ランキング／種目別）
 // =============================================
 
@@ -2130,6 +2320,7 @@ function init() {
   // 自己ベストのポップアップ：ボタンで開き、✕ボタンかポップアップの外側（暗い部分）を触ると閉じる
   btnBest.addEventListener("click", openBestModal);
   btnBestClose.addEventListener("click", closeBestModal);
+  setupTimer();
   bestModal.addEventListener("click", (event) => {
     if (event.target === bestModal) closeBestModal();
   });
